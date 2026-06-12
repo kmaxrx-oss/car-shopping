@@ -32,6 +32,8 @@
     manualUrl: document.getElementById("manual-url"),
     buildManualLink: document.getElementById("build-manual-link"),
     tierButtons: Array.from(document.querySelectorAll(".tier-chip")),
+    toolbox: document.getElementById("toolbox"),
+    quickNavSavedCars: document.getElementById("quick-nav-saved-cars"),
     savedCarsToggle: document.getElementById("saved-cars-toggle"),
     savedCarsPanel: document.getElementById("saved-cars-panel"),
     savedCarsCount: document.getElementById("saved-cars-count"),
@@ -504,7 +506,7 @@
           .join("");
 
         return `
-          <section class="tier-section" data-tier-id="${escapeHtml(tier.id)}">
+          <section id="${escapeHtml(tier.id)}" class="tier-section" data-tier-id="${escapeHtml(tier.id)}">
             <header class="tier-header">
               <div>
                 <h2>${escapeHtml(tier.label)}</h2>
@@ -794,6 +796,7 @@
 
   function setCaptureDragState(isActive) {
     els.savedCarCaptureBox.classList.toggle("is-drag-over", isActive);
+    els.toolbox.classList.toggle("is-drag-over", isActive);
   }
 
   function getDroppedHtmlUrl(html) {
@@ -857,6 +860,7 @@
 
   async function handleSavedCarCaptureDrop(event) {
     event.preventDefault();
+    event.stopPropagation();
     setCaptureDragState(false);
 
     let droppedText = "";
@@ -875,7 +879,7 @@
     }
 
     els.savedCarCapture.value = droppedText.trim();
-    handleSavedCarCaptureUse();
+    await handleSavedCarCaptureUse();
   }
 
   function handleSavedCarsListClick(event) {
@@ -898,6 +902,16 @@
     const isExpanded = els.savedCarsToggle.getAttribute("aria-expanded") === "true";
     els.savedCarsToggle.setAttribute("aria-expanded", String(!isExpanded));
     els.savedCarsPanel.hidden = isExpanded;
+  }
+
+  function focusSavedCarsPanel() {
+    if (els.savedCarsToggle.getAttribute("aria-expanded") !== "true") {
+      els.savedCarsToggle.setAttribute("aria-expanded", "true");
+      els.savedCarsPanel.hidden = false;
+    }
+
+    els.savedCarsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    els.savedCarsToggle.focus();
   }
 
   function syncTierButtonState() {
@@ -935,8 +949,12 @@
     });
 
     els.savedCarsToggle.addEventListener("click", toggleSavedCarsPanel);
+    els.quickNavSavedCars.addEventListener("click", (event) => {
+      event.preventDefault();
+      focusSavedCarsPanel();
+    });
     els.savedCarCaptureUse.addEventListener("click", handleSavedCarCaptureUse);
-    [els.savedCarCaptureBox, els.savedCarCapture].forEach((dropTarget) => {
+    [els.toolbox, els.savedCarCaptureBox, els.savedCarCapture].forEach((dropTarget) => {
       dropTarget.addEventListener("dragenter", (event) => {
         event.preventDefault();
         setCaptureDragState(true);

@@ -20,12 +20,24 @@ function normalizeWhitespace(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function excerpt(value, maxLength = 4000) {
+  const text = normalizeWhitespace(value);
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
 function firstMatch(text, regex) {
   const match = text.match(regex);
   return match ? normalizeWhitespace(match[1] || match[0]) : "";
 }
 
-function extractFieldsFromText(rawText) {
+function cleanTitle(value) {
+  return normalizeWhitespace(value)
+    .replace(/\s*\|\s*Facebook Marketplace\s*$/i, "")
+    .replace(/\s*-\s*Facebook Marketplace\s*$/i, "")
+    .replace(/^Marketplace\s*-\s*/i, "");
+}
+
+function extractFieldsFromText(rawText, hints = {}) {
   const text = normalizeWhitespace(rawText);
   const lines = String(rawText || "")
     .split(/\r?\n/)
@@ -33,25 +45,44 @@ function extractFieldsFromText(rawText) {
     .filter(Boolean);
 
   const price = firstMatch(text, /\$\s?\d[\d,]*(?:\.\d{2})?/);
-  const location = firstMatch(text, /([A-Za-z .'-]+,\s*[A-Z]{2})/);
-  const mileage = firstMatch(text, /(\d[\d,]*\s*(?:miles|mi\.?))/i);
+  const location =
+    firstMatch(text, /Listed\s+\d+\s+\w+\s+ago\s+in\s+([A-Za-z .'-]+,\s*[A-Z]{2})/i) ||
+    firstMatch(text, /Location\s+([A-Za-z .'-]+,\s*[A-Z]{2})/i) ||
+    firstMatch(text, /([A-Za-z .'-]+,\s*[A-Z]{2})/);
+  const mileage =
+    firstMatch(text, /Driven\s+(\d[\d,]*\s*miles?)/i) ||
+    firstMatch(text, /(\d[\d,]*\s*Miles)/) ||
+    firstMatch(text, /(\d[\d,]*\s*mi\.?)/i);
   const transmission = firstMatch(text, /\b(automatic|manual|cvt|continuously variable)\b/i);
   const fuelType = firstMatch(text, /\b(gasoline|hybrid|electric|diesel|flex fuel|plug-in hybrid|phev)\b/i);
-  const unavailable = /\b(sold|no longer available|listing is no longer available|content isn't available|removed)\b/i.test(text);
-  const title = lines.find((line) => line !== price && line !== location && !/^facebook marketplace$/i.test(line)) || "";
+  const loginRequired = /\b(log in|login|sign in|sign up|create new account)\b/i.test(text);
+  const unavailable = /\b(sold|no longer available|listing is no longer available|content isn't available|removed|this listing is no longer available)\b/i.test(text);
+  const title =
+    cleanTitle(hints.ogTitle || hints.pageTitle || "") ||
+    lines.find((line) => line !== price && line !== location && !/^facebook marketplace$/i.test(line)) ||
+    "";
+  const description = normalizeWhitespace(hints.ogDescription || "");
 
   return {
     ...emptyResult,
-    readStatus: title || price || location || mileage ? "ok" : unavailable ? "unavailable" : "could_not_parse",
+    readStatus: loginRequired && !title && !price
+      ? "login_required"
+      : unavailable
+        ? "unavailable"
+        : title || price || location || mileage || description
+          ? "ok"
+          : "could_not_parse",
     title,
     price,
     location,
     mileage,
     transmission,
     fuelType,
+    description,
+    imageUrl: normalizeWhitespace(hints.ogImage || ""),
     statusHint: unavailable ? "Gone / Removed" : "",
     unavailable,
-    rawText,
+    rawText: excerpt(rawText),
   };
 }
 
@@ -86,9 +117,20 @@ async function readWithPlaywright(url) {
     await page.waitForLoadState("networkidle", { timeout: Math.min(DEFAULT_TIMEOUT_MS, 10000) }).catch(() => {});
 
     const visibleText = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-    const snapshot = await page.accessibility.snapshot({ interestingOnly: false }).catch(() => null);
-    const rawText = [visibleText, JSON.stringify(snapshot || {})].filter(Boolean).join("\n");
-    const parsed = extractFieldsFromText(rawText);
+    const snapshot = page.accessibility && typeof page.accessibility.snapshot === "function"
+      ? await page.accessibility.snapshot({ interestingOnly: false }).catch(() => null)
+      : null;
+    const meta = await page.evaluate(() => {
+      const getMeta = (selector) => document.querySelector(selector)?.getAttribute("content") || "";
+      return {
+        pageTitle: document.title || "",
+        ogTitle: getMeta('meta[property="og:title"], meta[name="og:title"]'),
+        ogDescription: getMeta('meta[property="og:description"], meta[name="og:description"], meta[name="description"]'),
+        ogImage: getMeta('meta[property="og:image"], meta[name="og:image"]'),
+      };
+    }).catch(() => ({}));
+    const rawText = [visibleText, meta.pageTitle, meta.ogTitle, meta.ogDescription, JSON.stringify(snapshot || {})].filter(Boolean).join("\n");
+    const parsed = extractFieldsFromText(rawText, meta);
 
     if (/log in|login|sign in/i.test(rawText) && !parsed.title && !parsed.price) {
       return { ...parsed, readStatus: "login_required" };
