@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Car Search Homebase</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Local car search homebase</p>
+          <h1>Car Search Homebase</h1>
+          <p class="lede">
+            Static Facebook Marketplace link builder for the tiered vehicle model pool.
+            No scraping, no login automation, just fast clickable searches.
+          </p>
+        </div>
+        <div class="hero-note">
+          <div class="hero-note__label">Active tier for manual search</div>
+          <div id="active-tier-label" class="hero-note__value">Tier B - 2013+ models</div>
+        </div>
+      </header>
+
+      <section class="panel controls-panel" aria-labelledby="controls-title">
+        <div class="panel-heading">
+          <h2 id="controls-title">Global controls</h2>
+          <p>These filters apply to every generated Marketplace link.</p>
+        </div>
+
+        <div class="controls-grid">
+          <label>
+            <span>Min price</span>
+            <input id="min-price" type="number" min="0" step="50" value="1500" />
+          </label>
+          <label>
+            <span>Max price</span>
+            <input id="max-price" type="number" min="0" step="50" value="4000" />
+          </label>
+          <label>
+            <span>Radius</span>
+            <input id="radius" type="number" min="1" step="1" value="100" />
+          </label>
+          <label>
+            <span>Days listed</span>
+            <input id="days-listed" type="number" min="1" step="1" value="7" />
+          </label>
+          <label class="toggle">
+            <span>Exact match</span>
+            <input id="exact-toggle" type="checkbox" checked />
+          </label>
+        </div>
+
+        <div class="tier-selector" role="tablist" aria-label="Active tier">
+          <button class="tier-chip is-active" data-tier-id="tier-a" type="button">Tier A</button>
+          <button class="tier-chip" data-tier-id="tier-b" type="button">Tier B</button>
+          <button class="tier-chip" data-tier-id="tier-c" type="button">Tier C</button>
+        </div>
+      </section>
+
+      <section class="panel manual-panel" aria-labelledby="manual-title">
+        <div class="panel-heading">
+          <h2 id="manual-title">Manual query</h2>
+          <p>Type any query, then build a Facebook Marketplace URL using the active tier.</p>
+        </div>
+
+        <div class="manual-form">
+          <label class="manual-input">
+            <span>Search query</span>
+            <input id="manual-query" type="text" placeholder="Example: sienna hybrid" />
+          </label>
+          <button id="build-manual-link" type="button">Build search link</button>
+        </div>
+
+        <div class="manual-result">
+          <a id="manual-link" href="#" target="_blank" rel="noreferrer">Build a link to see it here</a>
+          <code id="manual-url" class="manual-url">Awaiting input...</code>
+        </div>
+      </section>
+
+      <main id="tier-sections" class="tier-sections" aria-live="polite"></main>
+
+      <footer class="footer">
+        <p>
+          Seed data only. The app builds Marketplace searches from local model lists and static tier rules.
+        </p>
+      </footer>
+    </div>
+
+    <script src="data/vehicles.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
