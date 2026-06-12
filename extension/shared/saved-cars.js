@@ -47,6 +47,18 @@
       }
 
       url.hash = "";
+
+      if (
+        (url.hostname === "facebook.com" || url.hostname === "www.facebook.com" || url.hostname === "m.facebook.com") &&
+        /^\/marketplace\/item\/[^/]+\/?$/i.test(url.pathname)
+      ) {
+        url.hostname = "www.facebook.com";
+        url.search = "";
+        if (!url.pathname.endsWith("/")) {
+          url.pathname += "/";
+        }
+      }
+
       return url.href;
     } catch (error) {
       return "";
