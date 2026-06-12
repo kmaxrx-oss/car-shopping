@@ -40,6 +40,10 @@
     zip: document.getElementById("active-zip"),
   };
 
+  const tierPickerEl = document.getElementById("tier-picker");
+  const tierModelPopover = document.getElementById("tier-model-popover");
+  const vehicles = globalThis.CarSearchHarnessVehicles || [];
+
   const activeFilters = {
     query: "hybrid",
     minPrice: 1500,
@@ -54,6 +58,9 @@
   let activePlatformId = platforms.defaultPlatformId;
   let currentPlatformResult = null;
   let savedCarRecords = [];
+  let openTierId = null;
+  let popoverPinned = false;
+  let popoverCloseTimer = null;
 
   function positiveNumber(value, fallback) {
     const parsed = Number(value);
@@ -101,6 +108,104 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
+  }
+
+  function clearPopoverTimer() {
+    if (popoverCloseTimer) {
+      clearTimeout(popoverCloseTimer);
+      popoverCloseTimer = null;
+    }
+  }
+
+  function schedulePopoverClose() {
+    clearPopoverTimer();
+    popoverCloseTimer = setTimeout(() => {
+      if (!popoverPinned) {
+        closeTierPopover();
+      }
+    }, 280);
+  }
+
+  function positionTierPopover(buttonEl) {
+    const rect = buttonEl.getBoundingClientRect();
+    const popWidth = Math.min(340, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - popWidth - 8));
+    tierModelPopover.style.top = (rect.bottom + 4) + "px";
+    tierModelPopover.style.left = left + "px";
+    tierModelPopover.style.width = popWidth + "px";
+  }
+
+  function openTierPopover(tierId, buttonEl, pin) {
+    clearPopoverTimer();
+    const tier = vehicles.find((t) => t.id === tierId);
+    if (!tier) {
+      return;
+    }
+    openTierId = tierId;
+    popoverPinned = pin;
+
+    const groupsHtml = tier.groups
+      .map((group) => {
+        const chipsHtml = group.models
+          .map((model) => {
+            const tagsHtml = (model.tags || [])
+              .map((tag) => `<span class="tier-model-tag">${escapeHtml(tag)}</span>`)
+              .join("");
+            return `<button class="tier-model-chip" type="button" data-model-name="${escapeHtml(model.name)}" data-tier-id="${escapeHtml(tierId)}">${escapeHtml(model.name)}${tagsHtml ? `<span class="tier-model-tags">${tagsHtml}</span>` : ""}</button>`;
+          })
+          .join("");
+        return `<div class="tier-model-popover__group"><div class="tier-model-popover__group-label">${escapeHtml(group.label)}</div><div class="tier-model-chips">${chipsHtml}</div></div>`;
+      })
+      .join("");
+
+    tierModelPopover.innerHTML = `<div class="tier-model-popover__header"><div class="tier-model-popover__tier-label">${escapeHtml(tier.label)}</div><p class="tier-model-popover__tier-desc">${escapeHtml(tier.description)}</p></div>${groupsHtml}`;
+    positionTierPopover(buttonEl);
+    tierModelPopover.hidden = false;
+
+    tierPickerEl.querySelectorAll(".tier-picker-button").forEach((btn) => {
+      const isActive = btn.dataset.tierId === tierId;
+      btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-pressed", String(isActive));
+    });
+  }
+
+  function closeTierPopover() {
+    clearPopoverTimer();
+    tierModelPopover.hidden = true;
+    tierModelPopover.innerHTML = "";
+    openTierId = null;
+    popoverPinned = false;
+    tierPickerEl.querySelectorAll(".tier-picker-button").forEach((btn) => {
+      btn.classList.remove("is-active");
+      btn.setAttribute("aria-pressed", "false");
+    });
+  }
+
+  function renderTierPicker() {
+    if (!vehicles.length) {
+      tierPickerEl.innerHTML = '<p class="status-line">No vehicle data.</p>';
+      return;
+    }
+    tierPickerEl.innerHTML = vehicles
+      .map((tier) => {
+        const shortLabel = tier.label.split(" - ")[0].trim();
+        return `<button class="tier-picker-button" type="button" data-tier-id="${escapeHtml(tier.id)}" aria-pressed="false" title="${escapeHtml(tier.description)}">${escapeHtml(shortLabel)}<span class="tier-picker-button__year">${escapeHtml(String(tier.minYear))}+</span></button>`;
+      })
+      .join("");
+
+    tierPickerEl.querySelectorAll(".tier-picker-button").forEach((btn) => {
+      btn.addEventListener("mouseenter", () => {
+        openTierPopover(btn.dataset.tierId, btn, popoverPinned);
+      });
+      btn.addEventListener("mouseleave", schedulePopoverClose);
+      btn.addEventListener("click", () => {
+        if (popoverPinned && openTierId === btn.dataset.tierId) {
+          closeTierPopover();
+        } else {
+          openTierPopover(btn.dataset.tierId, btn, true);
+        }
+      });
+    });
   }
 
   function setSavedCarStatus(message) {
@@ -805,6 +910,40 @@
     }
   });
 
+  tierModelPopover.addEventListener("mouseenter", clearPopoverTimer);
+  tierModelPopover.addEventListener("mouseleave", schedulePopoverClose);
+
+  tierModelPopover.addEventListener("click", (event) => {
+    const chip = event.target.closest(".tier-model-chip");
+    if (!chip) {
+      return;
+    }
+    const modelName = chip.dataset.modelName;
+    const tierId = chip.dataset.tierId;
+    const tier = vehicles.find((t) => t.id === tierId);
+    if (!tier || !modelName) {
+      return;
+    }
+    filterFields.query.value = modelName;
+    filterFields.minYear.value = String(tier.minYear);
+    renderPlatformResult();
+    closeTierPopover();
+    searchStatus.textContent = `Selected ${modelName} — ${tier.label}.`;
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!tierModelPopover.hidden && !tierModelPopover.contains(event.target) && !tierPickerEl.contains(event.target)) {
+      closeTierPopover();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !tierModelPopover.hidden) {
+      closeTierPopover();
+    }
+  });
+
+  renderTierPicker();
   renderTabs();
   populateStatusOptions();
   resetSavedCarForm();

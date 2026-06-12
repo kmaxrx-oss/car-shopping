@@ -340,3 +340,134 @@ textarea {
   display: flex;
   gap: 8px;
 }
+
+.tier-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.tier-picker-button {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 9px 8px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.tier-picker-button__year {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.tier-picker-button:hover,
+.tier-picker-button.is-active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.tier-picker-button:hover .tier-picker-button__year,
+.tier-picker-button.is-active .tier-picker-button__year {
+  color: var(--brand);
+}
+
+.tier-model-popover {
+  position: fixed;
+  z-index: 20;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+  padding: 8px;
+}
+
+.tier-model-popover__header {
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+
+.tier-model-popover__tier-label {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.tier-model-popover__tier-desc {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.tier-model-popover__group {
+  margin-bottom: 10px;
+}
+
+.tier-model-popover__group-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+  padding-left: 2px;
+}
+
+.tier-model-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tier-model-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.tier-model-chip:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.tier-model-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.tier-model-tag {
+  border-radius: 999px;
+  background: rgba(33, 28, 22, 0.07);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 5px;
+}
