@@ -77,11 +77,13 @@ The sidepanel supports:
 - delete
 - opening a saved-car URL through the extension service worker
 
-One-click active-tab save uses the `tabs` permission to request current-tab title and URL metadata from the sidepanel. `activeTab` was tested first, but did not expose usable title/URL metadata in the unpacked sidepanel runtime check. The button creates a saved car immediately with default `Interested` status, preserves the existing saved-car field contract, prevents duplicate saves by normalized URL, and now renders clearly as a URL-only/incomplete save until richer listing details are added.
+One-click active-tab save uses the `tabs` permission to request current-tab title and URL metadata from the sidepanel. `activeTab` was tested first, but did not expose usable title/URL metadata in the unpacked sidepanel runtime check. The button creates a saved car immediately with default `Interested` status, preserves the existing saved-car field contract, prevents duplicate saves by normalized URL, and renders clearly as a URL-only/incomplete save when richer listing details are unavailable.
+
+For Facebook Marketplace item URLs, active-tab save and URL-only listing capture attempt the optional local reader at `http://localhost:3137/read-listing`. Reader details fill blank saved-car fields only; explicit pasted fields stay authoritative. If the local reader is unavailable or cannot identify listing details, the extension still saves the URL-only card with a clear status message.
 
 ## Deferred work
 
 - Full Cars.com, eBay, Craigslist, and Autotrader URL builders.
-- Content scripts, page scraping, login handling, credentials, background loops, scheduled checks, and bulk processing.
+- Content scripts, page DOM reading, login handling, credentials, background loops, scheduled checks, and bulk processing.
 - Moving static app code into shared modules.
 - Saved-car storage migration.

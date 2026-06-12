@@ -2,6 +2,7 @@
   const platforms = globalThis.CarSearchHarnessPlatforms;
   const savedCars = globalThis.CarSearchHarnessSavedCars;
   const captureParser = globalThis.CarSearchHarnessCaptureParser;
+  const listingReader = globalThis.CarSearchHarnessListingReaderClient;
   const storage = globalThis.CarSearchHarnessStorage;
   const tabs = document.getElementById("platform-tabs");
   const resultBox = document.getElementById("platform-result");
@@ -110,6 +111,160 @@
     captureStatusLine.textContent = message;
   }
 
+  function getMissingCaptureFields(capture) {
+    return ["price", "location", "sellerName", "mileage"].filter((field) => !capture[field]);
+  }
+
+  function shouldTryReader(capture) {
+    return Boolean(
+      listingReader &&
+        capture &&
+        capture.url &&
+        listingReader.isFacebookMarketplaceListingUrl(capture.url) &&
+        getMissingCaptureFields(capture).length
+    );
+  }
+
+  function mergeCaptureWithReader(capture, readerCapture, fallbackTitle) {
+    return {
+      title: capture.title || readerCapture.title || fallbackTitle || capture.url,
+      url: capture.url,
+      price: capture.price || readerCapture.price || "",
+      location: capture.location || readerCapture.location || "",
+      sellerName: capture.sellerName || readerCapture.sellerName || "",
+      mileage: capture.mileage || readerCapture.mileage || "",
+      transmission: capture.transmission || readerCapture.transmission || "",
+      fuelType: capture.fuelType || readerCapture.fuelType || "",
+      description: capture.description || readerCapture.description || "",
+      imageUrl: capture.imageUrl || readerCapture.imageUrl || "",
+      readStatus: readerCapture.readStatus || capture.readStatus || "",
+      statusHint: capture.statusHint || readerCapture.statusHint || "",
+      sourceText: capture.sourceText,
+    };
+  }
+
+  function createReaderSourceText(sourceText, readStatus) {
+    const trimmed = String(sourceText || "").trim();
+    if (!readStatus || readStatus === "ok") {
+      return trimmed;
+    }
+
+    const statusLine = `Reader status: ${readStatus}`;
+    return trimmed ? `${trimmed}\n${statusLine}` : statusLine;
+  }
+
+  async function enrichCaptureWithReader(capture, options = {}) {
+    const fallbackTitle = options.fallbackTitle || "";
+    const statusTarget = options.statusTarget || "capture";
+
+    if (!shouldTryReader(capture)) {
+      return {
+        capture: {
+          ...capture,
+          title: capture.title || fallbackTitle || capture.url,
+        },
+        attempted: false,
+        enriched: false,
+        message: "",
+      };
+    }
+
+    if (statusTarget === "saved") {
+      setSavedCarStatus("Reading listing details...");
+    } else {
+      setCaptureStatus("Reading listing details...");
+    }
+
+    const response = await listingReader.readListingFromLocalReader(capture.url);
+    const readerCapture = listingReader.normalizeReaderResponse(
+      response,
+      capture.url,
+      createReaderSourceText(capture.sourceText, response.readStatus)
+    );
+
+    if (response.readStatus === "ok" || listingReader.hasReaderCaptureFields(readerCapture)) {
+      return {
+        capture: mergeCaptureWithReader(capture, readerCapture, fallbackTitle),
+        attempted: true,
+        enriched: true,
+        readStatus: response.readStatus,
+        message: "",
+      };
+    }
+
+    return {
+      capture: {
+        ...capture,
+        title: capture.title || fallbackTitle || capture.url,
+        readStatus: response.readStatus || capture.readStatus || "",
+        sourceText: createReaderSourceText(capture.sourceText, response.readStatus),
+      },
+      attempted: true,
+      enriched: false,
+      readStatus: response.readStatus,
+      message: listingReader.getReaderFailureMessage(response.readStatus),
+    };
+  }
+
+  async function saveCaptureAsCar(capture, options = {}) {
+    const isUrlOnly = Boolean(options.isUrlOnly);
+    const statusTarget = options.statusTarget || "capture";
+
+    if (findSavedCarByUrl(capture.url)) {
+      const duplicateMessage = "Already saved.";
+      if (statusTarget === "saved") {
+        setSavedCarStatus(duplicateMessage);
+      } else {
+        setCaptureStatus(duplicateMessage);
+      }
+      return { saved: false, duplicate: true };
+    }
+
+    const carResult = savedCars.createSavedCar({
+      title: capture.title || capture.url,
+      url: capture.url,
+      price: capture.price || "",
+      location: capture.location || "",
+      sellerName: capture.sellerName || "",
+      mileage: capture.mileage || "",
+      transmission: capture.transmission || "",
+      fuelType: capture.fuelType || "",
+      description: capture.description || "",
+      imageUrl: capture.imageUrl || "",
+      readStatus: capture.readStatus || "",
+      statusHint: capture.statusHint || "",
+      status: "Interested",
+      sourceText: capture.sourceText || "",
+    });
+
+    if (carResult.error) {
+      if (statusTarget === "saved") {
+        setSavedCarStatus(carResult.error);
+      } else {
+        setCaptureStatus(carResult.error);
+      }
+      return { saved: false, error: carResult.error };
+    }
+
+    savedCarRecords = [carResult.value, ...savedCarRecords];
+
+    let message = `Saved: ${carResult.value.title}.`;
+    if (options.enriched) {
+      message = `Saved with reader details: ${carResult.value.title}.`;
+    } else if (options.readerAttempted && options.readerMessage) {
+      message = `Saved URL only. ${options.readerMessage}`;
+    } else if (isUrlOnly) {
+      message = `Saved URL only: ${carResult.value.title}.`;
+    }
+
+    await persistSavedCars(message);
+    if (statusTarget === "capture") {
+      setCaptureStatus(message);
+    }
+
+    return { saved: true, value: carResult.value, message };
+  }
+
   function setCaptureDragState(active) {
     listingCaptureBox.classList.toggle("is-drag-over", active);
   }
@@ -157,38 +312,23 @@
         return;
       }
 
-      const isUrlOnly = captureParser.isUrlOnlyCapture(rawText, capture);
-      const title = capture.title || capture.url;
-
       if (findSavedCarByUrl(capture.url)) {
         setCaptureStatus("Already saved.");
         return;
       }
 
-      const carResult = savedCars.createSavedCar({
-        title,
-        url: capture.url,
-        price: capture.price || "",
-        location: capture.location || "",
-        sellerName: capture.sellerName || "",
-        mileage: capture.mileage || "",
-        transmission: capture.transmission || "",
-        fuelType: capture.fuelType || "",
-        status: "Interested",
-        sourceText: capture.sourceText,
+      const isUrlOnly = captureParser.isUrlOnlyCapture(rawText, capture);
+      const enrichment = await enrichCaptureWithReader(capture, { statusTarget: "capture" });
+      const saveResult = await saveCaptureAsCar(enrichment.capture, {
+        isUrlOnly,
+        enriched: enrichment.enriched,
+        readerAttempted: enrichment.attempted,
+        readerMessage: enrichment.message,
+        statusTarget: "capture",
       });
-
-      if (carResult.error) {
-        setCaptureStatus(carResult.error);
-        return;
+      if (saveResult.saved) {
+        listingCaptureTextarea.value = "";
       }
-
-      savedCarRecords = [carResult.value, ...savedCarRecords];
-      await persistSavedCars(
-        isUrlOnly ? `Saved URL only: ${carResult.value.title}.` : `Saved: ${carResult.value.title}.`
-      );
-      listingCaptureTextarea.value = "";
-      setCaptureStatus("");
     } catch (error) {
       setCaptureStatus(error.message || "Capture could not be saved.");
     } finally {
@@ -256,6 +396,20 @@
     return missing;
   }
 
+  function hasReaderDetailFields(car) {
+    return Boolean(
+      car.price ||
+        car.location ||
+        car.sellerName ||
+        car.mileage ||
+        car.transmission ||
+        car.fuelType ||
+        car.description ||
+        car.imageUrl ||
+        car.statusHint
+    );
+  }
+
   function getSavedCarSourceType(car) {
     const sourceText = String(car.sourceText || "").trim();
     if (!sourceText) {
@@ -270,10 +424,13 @@
       .replace(/^\s*\[InternetShortcut\]\s*$/gim, "")
       .replace(/^\s*URL=/gim, "")
       .trim();
+    const sourceLines = sourceWithoutShortcutWrapper
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
 
     if (
-      sourceWithoutShortcutWrapper &&
-      savedCars.normalizeSavedCarUrl(sourceWithoutShortcutWrapper) === savedCars.normalizeSavedCarUrl(car.url)
+      sourceLines.some((line) => savedCars.normalizeSavedCarUrl(line) === savedCars.normalizeSavedCarUrl(car.url))
     ) {
       return "url_only";
     }
@@ -303,6 +460,10 @@
     const sourceType = getSavedCarSourceType(car);
     if (sourceType === "active_tab") {
       return "Source: Saved from active tab";
+    }
+
+    if (car.readStatus && hasReaderDetailFields(car)) {
+      return `Source: Reader details from ${compactUrl(car.url) || "listing URL"}`;
     }
 
     if (sourceType === "url_only") {
@@ -478,20 +639,32 @@
         return;
       }
 
-      const result = savedCars.createSavedCar({
-        title: response.title || response.url,
+      const capture = {
+        title: "",
         url: response.url,
-        status: "Interested",
+        price: "",
+        location: "",
+        sellerName: "",
+        mileage: "",
+        transmission: "",
+        fuelType: "",
+        description: "",
+        imageUrl: "",
+        readStatus: "",
+        statusHint: "",
         sourceText: `Saved from active tab: ${response.url}`,
+      };
+      const enrichment = await enrichCaptureWithReader(capture, {
+        fallbackTitle: response.title || response.url,
+        statusTarget: "saved",
       });
-
-      if (result.error) {
-        setSavedCarStatus(result.error);
-        return;
-      }
-
-      savedCarRecords = [result.value, ...savedCarRecords];
-      await persistSavedCars(`Saved current tab: ${result.value.title}.`);
+      await saveCaptureAsCar(enrichment.capture, {
+        isUrlOnly: true,
+        enriched: enrichment.enriched,
+        readerAttempted: enrichment.attempted,
+        readerMessage: enrichment.message,
+        statusTarget: "saved",
+      });
       resetSavedCarForm();
     } catch (error) {
       setSavedCarStatus(error.message || "Current tab cannot be saved as a car.");
