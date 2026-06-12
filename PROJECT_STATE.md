@@ -2,7 +2,7 @@
 
 ## Current goal
 
-Create a local, static car-search homebase that preserves the vehicle tier and model context, generates clickable Facebook Marketplace search URLs, and provides a manual Saved Cars shortlist.
+Create a local, static car-search homebase that preserves the vehicle tier and model context, generates clickable Facebook Marketplace search URLs, provides a manual Saved Cars shortlist, and supports local Smart Capture from pasted listing text.
 
 ## Current tier logic
 
@@ -33,12 +33,16 @@ Stored object shape:
 - `id`
 - `title`
 - `url`
+- `price`
+- `location`
+- `sellerName`
 - `status`
 - `notes`
+- `sourceText`
 - `createdAt`
 - `updatedAt`
 
-This is browser-local `localStorage` only. Saved listing URLs are opened manually by the user; the app does not fetch or inspect them.
+This is browser-local `localStorage` only. Saved listing URLs are opened manually by the user, and Smart Capture only parses user-provided pasted or dropped text. The app does not fetch or inspect Facebook.
 
 ## Ordering heuristic
 

@@ -7,6 +7,7 @@ This repository is a local desktop-first static app for building Facebook Market
 - A simple HTML/CSS/JavaScript home base for car searching
 - A local URL builder for Facebook Marketplace searches
 - A local Saved Cars shortlist stored in your browser
+- A Smart Capture helper for pasted or dropped Marketplace text blocks
 - A structured seed data file for tier, make group, and model family context
 
 ## What it is not
@@ -36,12 +37,16 @@ Each saved car stores:
 - `id`
 - `title`
 - `url`
+- `price`
+- `location`
+- `sellerName`
 - `status`
 - `notes`
+- `sourceText`
 - `createdAt`
 - `updatedAt`
 
-This is manual shortlist storage only. The app does not inspect, scrape, or monitor saved listing URLs.
+This is manual shortlist storage only. Smart Capture parses user-provided pasted or dropped text locally in the browser. The app does not inspect, scrape, fetch, or monitor saved listing URLs.
 
 ## How the URL builder works
 
@@ -64,7 +69,7 @@ The base Marketplace location and category values stay fixed for this tranche.
 
 - `index.html`: app shell and controls
 - `styles.css`: desktop-first layout, toolbox lane, and card styling
-- `app.js`: renders the data, builds Marketplace links, and manages Saved Cars localStorage
+- `app.js`: renders the data, builds Marketplace links, manages Saved Cars localStorage, and parses Smart Capture input
 - `data/vehicles.js`: static tiered vehicle model seed data
 - `PROJECT_STATE.md`: preserved scope and rules for the current tranche
 - `docs/url-format.md`: Facebook URL parameter reference

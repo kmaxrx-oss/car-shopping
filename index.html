@@ -103,8 +103,24 @@
             </button>
 
             <div id="saved-cars-panel" class="toolbox-panel">
+              <section id="saved-car-capture-box" class="capture-box" aria-labelledby="smart-capture-title">
+                <div class="capture-box__header">
+                  <h3 id="smart-capture-title">Smart Capture</h3>
+                  <p>Paste or drop a Marketplace listing URL/text block here.</p>
+                </div>
+                <label>
+                  <span class="sr-only">Smart Capture input</span>
+                  <textarea id="saved-car-capture" class="saved-car-capture" rows="5"></textarea>
+                </label>
+                <div class="saved-car-actions">
+                  <button id="saved-car-capture-use" type="button">Use capture</button>
+                </div>
+                <p id="saved-car-capture-message" class="capture-message" role="status"></p>
+              </section>
+
               <form id="saved-car-form" class="saved-car-form" novalidate>
                 <input id="saved-car-id" type="hidden" />
+                <input id="saved-car-source-text" type="hidden" />
                 <label>
                   <span>Listing title</span>
                   <input id="saved-car-title" type="text" autocomplete="off" />
@@ -112,6 +128,18 @@
                 <label>
                   <span>Listing URL</span>
                   <input id="saved-car-url" type="url" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Price</span>
+                  <input id="saved-car-price" type="text" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Location</span>
+                  <input id="saved-car-location" type="text" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Seller name</span>
+                  <input id="saved-car-seller-name" type="text" autocomplete="off" />
                 </label>
                 <label>
                   <span>Status</span>

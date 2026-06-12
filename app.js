@@ -34,10 +34,18 @@
     savedCarsPanel: document.getElementById("saved-cars-panel"),
     savedCarsCount: document.getElementById("saved-cars-count"),
     savedCarsList: document.getElementById("saved-cars-list"),
+    savedCarCaptureBox: document.getElementById("saved-car-capture-box"),
+    savedCarCapture: document.getElementById("saved-car-capture"),
+    savedCarCaptureUse: document.getElementById("saved-car-capture-use"),
+    savedCarCaptureMessage: document.getElementById("saved-car-capture-message"),
     savedCarForm: document.getElementById("saved-car-form"),
     savedCarId: document.getElementById("saved-car-id"),
+    savedCarSourceText: document.getElementById("saved-car-source-text"),
     savedCarTitle: document.getElementById("saved-car-title"),
     savedCarUrl: document.getElementById("saved-car-url"),
+    savedCarPrice: document.getElementById("saved-car-price"),
+    savedCarLocation: document.getElementById("saved-car-location"),
+    savedCarSellerName: document.getElementById("saved-car-seller-name"),
     savedCarStatus: document.getElementById("saved-car-status"),
     savedCarNotes: document.getElementById("saved-car-notes"),
     savedCarError: document.getElementById("saved-car-error"),
@@ -81,6 +89,11 @@
     els.savedCarError.textContent = message;
   }
 
+  function setCaptureMessage(message, tone) {
+    els.savedCarCaptureMessage.textContent = message;
+    els.savedCarCaptureMessage.classList.toggle("is-success", tone === "success");
+  }
+
   function clearSavedCarError() {
     showSavedCarError("");
   }
@@ -105,8 +118,12 @@
       id: typeof candidate.id === "string" && candidate.id ? candidate.id : generateSavedCarId(),
       title,
       url,
+      price: typeof candidate.price === "string" ? candidate.price : "",
+      location: typeof candidate.location === "string" ? candidate.location : "",
+      sellerName: typeof candidate.sellerName === "string" ? candidate.sellerName : "",
       status: savedCarStatuses.includes(candidate.status) ? candidate.status : "Interested",
       notes: typeof candidate.notes === "string" ? candidate.notes : "",
+      sourceText: typeof candidate.sourceText === "string" ? candidate.sourceText : "",
       createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : new Date().toISOString(),
       updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : new Date().toISOString(),
     };
@@ -155,6 +172,94 @@
     params.set("sortBy", "creation_time_descend");
     params.set("exact", exact ? "true" : "false");
     return `${baseUrl}?${params.toString()}`;
+  }
+
+  function parseSavedCarCapture(rawText) {
+    const sourceText = typeof rawText === "string" ? rawText.trim() : "";
+    if (!sourceText) {
+      return { error: "Paste or drop a listing URL or text block to use Smart Capture." };
+    }
+
+    const urlMatch = sourceText.match(/https?:\/\/\S+/i);
+    const url = urlMatch ? urlMatch[0].replace(/[)\].,!?]+$/, "") : "";
+    const rawLines = sourceText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const seenLines = new Set();
+    const uniqueLines = rawLines.filter((line) => {
+      const normalizedLine = line.toLowerCase();
+      if (seenLines.has(normalizedLine)) {
+        return false;
+      }
+
+      seenLines.add(normalizedLine);
+      return true;
+    });
+
+    const priceLine = uniqueLines.find((line) => /^\$\s?\d[\d,]*(?:\.\d{2})?$/.test(line));
+    const barePriceLine = uniqueLines.find((line) => /^\d[\d,]*(?:\.\d{2})?$/.test(line));
+    const price = priceLine || barePriceLine || "";
+
+    const location =
+      uniqueLines.find((line) => /^[A-Za-z .'-]+,\s*[A-Z]{2}$/.test(line)) ||
+      uniqueLines.find((line) => /^[A-Za-z .'-]+,\s*[A-Za-z .'-]+$/.test(line)) ||
+      "";
+
+    let sellerName = "";
+    for (const line of uniqueLines) {
+      const sellerMatch = line.match(/^(?:seller|listed by|posted by)\s*:\s*(.+)$/i);
+      if (sellerMatch && sellerMatch[1].trim()) {
+        sellerName = sellerMatch[1].trim();
+        break;
+      }
+    }
+
+    const filteredLines = uniqueLines.filter((line) => {
+      if (url && line.includes(url)) {
+        return false;
+      }
+
+      if (price && line === price) {
+        return false;
+      }
+
+      if (location && line === location) {
+        return false;
+      }
+
+      if (/^(seller|listed by|posted by)\s*:/i.test(line)) {
+        return false;
+      }
+
+      if (/^(ref|referral_code|referral_story_type|tracking)=/i.test(line)) {
+        return false;
+      }
+
+      if (/^(facebook|marketplace)$/i.test(line)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const title = filteredLines[0] || "";
+
+    if (!url && !price && !location && !title && !sellerName) {
+      return { error: "Smart Capture could not find a usable listing URL or details in that text." };
+    }
+
+    return {
+      value: {
+        url,
+        price,
+        location,
+        title,
+        sellerName,
+        sourceText,
+      },
+    };
   }
 
   function getActiveTier() {
@@ -285,8 +390,12 @@
 
   function resetSavedCarForm() {
     els.savedCarId.value = "";
+    els.savedCarSourceText.value = "";
     els.savedCarTitle.value = "";
     els.savedCarUrl.value = "";
+    els.savedCarPrice.value = "";
+    els.savedCarLocation.value = "";
+    els.savedCarSellerName.value = "";
     els.savedCarStatus.value = "Interested";
     els.savedCarNotes.value = "";
     els.savedCarSubmit.textContent = "Save car";
@@ -297,8 +406,12 @@
   function validateSavedCarForm() {
     const title = els.savedCarTitle.value.trim();
     const url = els.savedCarUrl.value.trim();
+    const price = els.savedCarPrice.value.trim();
+    const location = els.savedCarLocation.value.trim();
+    const sellerName = els.savedCarSellerName.value.trim();
     const status = savedCarStatuses.includes(els.savedCarStatus.value) ? els.savedCarStatus.value : "Interested";
     const notes = els.savedCarNotes.value.trim();
+    const sourceText = els.savedCarSourceText.value;
 
     if (!title) {
       return { error: "Listing title is required." };
@@ -317,7 +430,7 @@
       return { error: "Listing URL must be a valid http or https URL." };
     }
 
-    return { value: { title, url, status, notes } };
+    return { value: { title, url, price, location, sellerName, status, notes, sourceText } };
   }
 
   function renderSavedCars() {
@@ -333,10 +446,15 @@
         const savedAt = formatTimestamp(car.createdAt);
         const updatedAt = formatTimestamp(car.updatedAt);
         const timestamp = updatedAt && updatedAt !== savedAt ? `Updated ${updatedAt}` : savedAt ? `Saved ${savedAt}` : "";
+        const facts = [car.price, car.location, car.sellerName]
+          .filter(Boolean)
+          .map((fact) => `<span class="saved-car-card__fact">${escapeHtml(fact)}</span>`)
+          .join("");
 
         return `
           <article class="saved-car-card" data-saved-car-id="${escapeHtml(car.id)}">
             <div class="saved-car-card__title">${escapeHtml(car.title)}</div>
+            ${facts ? `<div class="saved-car-card__facts">${facts}</div>` : ""}
             <div class="saved-car-card__status">${escapeHtml(car.status)}</div>
             ${car.notes ? `<p class="saved-car-card__notes">${escapeHtml(car.notes)}</p>` : ""}
             ${timestamp ? `<p class="saved-car-card__meta">${escapeHtml(timestamp)}</p>` : ""}
@@ -366,16 +484,24 @@
     if (existingCar) {
       existingCar.title = result.value.title;
       existingCar.url = result.value.url;
+      existingCar.price = result.value.price;
+      existingCar.location = result.value.location;
+      existingCar.sellerName = result.value.sellerName;
       existingCar.status = result.value.status;
       existingCar.notes = result.value.notes;
+      existingCar.sourceText = result.value.sourceText;
       existingCar.updatedAt = now;
     } else {
       state.savedCars.unshift({
         id: generateSavedCarId(),
         title: result.value.title,
         url: result.value.url,
+        price: result.value.price,
+        location: result.value.location,
+        sellerName: result.value.sellerName,
         status: result.value.status,
         notes: result.value.notes,
+        sourceText: result.value.sourceText,
         createdAt: now,
         updatedAt: now,
       });
@@ -393,8 +519,12 @@
     }
 
     els.savedCarId.value = car.id;
+    els.savedCarSourceText.value = car.sourceText || "";
     els.savedCarTitle.value = car.title;
     els.savedCarUrl.value = car.url;
+    els.savedCarPrice.value = car.price || "";
+    els.savedCarLocation.value = car.location || "";
+    els.savedCarSellerName.value = car.sellerName || "";
     els.savedCarStatus.value = car.status;
     els.savedCarNotes.value = car.notes;
     els.savedCarSubmit.textContent = "Update car";
@@ -420,6 +550,53 @@
     if (els.savedCarId.value === id) {
       resetSavedCarForm();
     }
+  }
+
+  function prefillSavedCarFormFromCapture(capture) {
+    els.savedCarSourceText.value = capture.sourceText || "";
+    els.savedCarTitle.value = capture.title || "";
+    els.savedCarUrl.value = capture.url || "";
+    els.savedCarPrice.value = capture.price || "";
+    els.savedCarLocation.value = capture.location || "";
+    els.savedCarSellerName.value = capture.sellerName || "";
+  }
+
+  function handleSavedCarCaptureUse() {
+    const result = parseSavedCarCapture(els.savedCarCapture.value);
+    if (result.error) {
+      setCaptureMessage(result.error, "error");
+      return;
+    }
+
+    prefillSavedCarFormFromCapture(result.value);
+    clearSavedCarError();
+
+    const summaryParts = [result.value.title, result.value.price, result.value.location, result.value.url ? "URL found" : ""].filter(Boolean);
+    setCaptureMessage(
+      summaryParts.length ? `Capture ready: ${summaryParts.join(" | ")}` : "Capture added a listing URL to the form.",
+      "success"
+    );
+  }
+
+  function setCaptureDragState(isActive) {
+    els.savedCarCaptureBox.classList.toggle("is-drag-over", isActive);
+  }
+
+  function handleSavedCarCaptureDrop(event) {
+    event.preventDefault();
+    setCaptureDragState(false);
+
+    const droppedText = event.dataTransfer && typeof event.dataTransfer.getData === "function"
+      ? event.dataTransfer.getData("text/plain") || event.dataTransfer.getData("text/uri-list")
+      : "";
+
+    if (!droppedText) {
+      setCaptureMessage("Drop text or a listing URL into Smart Capture to use it.", "error");
+      return;
+    }
+
+    els.savedCarCapture.value = droppedText.trim();
+    handleSavedCarCaptureUse();
   }
 
   function handleSavedCarsListClick(event) {
@@ -479,6 +656,19 @@
     });
 
     els.savedCarsToggle.addEventListener("click", toggleSavedCarsPanel);
+    els.savedCarCaptureUse.addEventListener("click", handleSavedCarCaptureUse);
+    els.savedCarCapture.addEventListener("dragenter", (event) => {
+      event.preventDefault();
+      setCaptureDragState(true);
+    });
+    els.savedCarCapture.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      setCaptureDragState(true);
+    });
+    els.savedCarCapture.addEventListener("dragleave", () => {
+      setCaptureDragState(false);
+    });
+    els.savedCarCapture.addEventListener("drop", handleSavedCarCaptureDrop);
     els.savedCarForm.addEventListener("submit", handleSavedCarSubmit);
     els.savedCarCancel.addEventListener("click", resetSavedCarForm);
     els.savedCarsList.addEventListener("click", handleSavedCarsListClick);

@@ -162,6 +162,18 @@ label {
   font-weight: 700;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 input[type="number"],
 input[type="text"],
 input[type="url"],
@@ -469,6 +481,41 @@ textarea {
   gap: 12px;
 }
 
+.capture-box {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed rgba(32, 90, 74, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.capture-box.is-drag-over {
+  border-color: rgba(32, 90, 74, 0.7);
+  background: rgba(216, 238, 230, 0.7);
+}
+
+.capture-box__header {
+  display: grid;
+  gap: 4px;
+}
+
+.capture-box__header h3 {
+  font-size: 1rem;
+}
+
+.capture-box__header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.saved-car-capture {
+  min-height: 128px;
+}
+
+.capture-message,
 .form-error,
 .storage-warning {
   margin: 0;
@@ -476,6 +523,10 @@ textarea {
   font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.4;
+}
+
+.capture-message.is-success {
+  color: var(--brand);
 }
 
 .storage-warning {
@@ -548,6 +599,23 @@ textarea {
 .saved-car-card__title {
   font-weight: 800;
   line-height: 1.35;
+}
+
+.saved-car-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved-car-card__fact {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(32, 90, 74, 0.1);
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .saved-car-card__status {
