@@ -67,7 +67,41 @@
 
       <section class="panel-section" aria-labelledby="saved-title">
         <h2 id="saved-title">Saved Cars</h2>
-        <p id="saved-cars-placeholder" class="placeholder-text"></p>
+        <form id="saved-car-form" class="saved-car-form" novalidate>
+          <input id="saved-car-id" type="hidden" />
+          <label class="field">
+            <span>Title</span>
+            <input id="saved-car-title" type="text" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>URL</span>
+            <input id="saved-car-url" type="url" autocomplete="off" />
+          </label>
+          <div class="controls-grid">
+            <label class="field">
+              <span>Price</span>
+              <input id="saved-car-price" type="text" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Location</span>
+              <input id="saved-car-location" type="text" autocomplete="off" />
+            </label>
+          </div>
+          <label class="field">
+            <span>Status</span>
+            <select id="saved-car-status"></select>
+          </label>
+          <label class="field">
+            <span>Notes</span>
+            <textarea id="saved-car-notes" rows="3"></textarea>
+          </label>
+          <div class="form-actions">
+            <button id="save-car-button" class="search-button" type="submit">Save car</button>
+            <button id="cancel-edit-button" class="secondary-button" type="button" hidden>Cancel edit</button>
+          </div>
+          <p id="saved-car-status-line" class="status-line" role="status"></p>
+        </form>
+        <div id="saved-cars-list" class="saved-cars-list" aria-live="polite"></div>
       </section>
 
       <section class="panel-section" aria-labelledby="preview-title">

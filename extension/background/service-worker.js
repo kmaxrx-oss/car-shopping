@@ -7,6 +7,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 let facebookSearchTabId = null;
+let savedCarTabId = null;
 
 function isAllowedFacebookMarketplaceUrl(value) {
   try {
@@ -47,9 +48,61 @@ async function openOrUpdateFacebookSearchTab(url) {
   };
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || message.type !== "OPEN_SEARCH_TAB") {
+function isAllowedHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (error) {
     return false;
+  }
+}
+
+async function openOrUpdateSavedCarTab(url) {
+  if (!isAllowedHttpUrl(url)) {
+    return {
+      status: "error",
+      message: "Saved car URL must start with http or https.",
+    };
+  }
+
+  if (savedCarTabId !== null) {
+    try {
+      const tab = await chrome.tabs.update(savedCarTabId, { active: true, url });
+      return {
+        status: "ok",
+        reused: true,
+        tabId: tab.id,
+      };
+    } catch (error) {
+      savedCarTabId = null;
+    }
+  }
+
+  const tab = await chrome.tabs.create({ active: true, url });
+  savedCarTabId = tab.id;
+  return {
+    status: "ok",
+    reused: false,
+    tabId: tab.id,
+  };
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || !["OPEN_SEARCH_TAB", "OPEN_SAVED_CAR_TAB"].includes(message.type)) {
+    return false;
+  }
+
+  if (message.type === "OPEN_SAVED_CAR_TAB") {
+    openOrUpdateSavedCarTab(message.url)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          status: "error",
+          message: error.message || "Saved car tab could not be opened.",
+        });
+      });
+
+    return true;
   }
 
   if (message.platformId !== "facebook") {

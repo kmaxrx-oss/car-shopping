@@ -67,7 +67,17 @@ The current saved-car data shape remains the compatibility target:
 
 `id`, `title`, `url`, `price`, `location`, `sellerName`, `mileage`, `transmission`, `fuelType`, `description`, `imageUrl`, `readStatus`, `statusHint`, `status`, `notes`, `sourceText`, `createdAt`, `updatedAt`
 
-The static app currently uses browser `localStorage` under `carShopping.savedCars.v1`. A future extension version may migrate this into `chrome.storage.local`, but that should be an explicit migration and compatibility step, not a silent replacement.
+The static app currently uses browser `localStorage` under `carShopping.savedCars.v1`. The extension side panel now uses `chrome.storage.local` with the same key and field contract so extension saved cars persist across sidepanel reloads and normal browser restarts. Static app migration remains deferred.
+
+The sidepanel supports:
+
+- manual saved-car add with title, URL, price, location, status, and notes
+- saved-car list rendering
+- status/notes edit through the same form
+- delete
+- opening a saved-car URL through the extension service worker
+
+One-click active-tab save is deferred. Reading the active tab title and URL would require `tabs`, host permissions, or an `activeTab` permission flow. This tranche adds only the required `storage` permission.
 
 ## Deferred work
 

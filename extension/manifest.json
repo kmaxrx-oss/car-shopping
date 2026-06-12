@@ -11,7 +11,8 @@
     "service_worker": "background/service-worker.js"
   },
   "permissions": [
-    "sidePanel"
+    "sidePanel",
+    "storage"
   ],
   "side_panel": {
     "default_path": "sidepanel/index.html"

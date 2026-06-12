@@ -22,6 +22,23 @@
     "updatedAt",
   ];
 
+  function generateSavedCarId() {
+    if (global.crypto && typeof global.crypto.randomUUID === "function") {
+      return global.crypto.randomUUID();
+    }
+
+    return `saved-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function isHttpUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch (error) {
+      return false;
+    }
+  }
+
   function normalizeSavedCarDraft(candidate) {
     const source = candidate && typeof candidate === "object" ? candidate : {};
     return {
@@ -46,9 +63,68 @@
     };
   }
 
+  function normalizeStoredSavedCar(candidate) {
+    const draft = normalizeSavedCarDraft(candidate);
+    if (!draft.title.trim() || !isHttpUrl(draft.url.trim())) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    return {
+      ...draft,
+      id: draft.id || generateSavedCarId(),
+      title: draft.title.trim(),
+      url: draft.url.trim(),
+      price: draft.price.trim(),
+      location: draft.location.trim(),
+      sellerName: draft.sellerName.trim(),
+      mileage: draft.mileage.trim(),
+      transmission: draft.transmission.trim(),
+      fuelType: draft.fuelType.trim(),
+      description: draft.description.trim(),
+      imageUrl: draft.imageUrl.trim(),
+      readStatus: draft.readStatus.trim(),
+      statusHint: draft.statusHint.trim(),
+      notes: draft.notes.trim(),
+      sourceText: draft.sourceText,
+      createdAt: draft.createdAt || now,
+      updatedAt: draft.updatedAt || now,
+    };
+  }
+
+  function createSavedCar(candidate) {
+    const normalized = normalizeStoredSavedCar({
+      ...candidate,
+      id: candidate && candidate.id ? candidate.id : generateSavedCarId(),
+      createdAt: candidate && candidate.createdAt ? candidate.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (!normalized) {
+      return { error: "Saved car needs a title and a valid http or https URL." };
+    }
+
+    return { value: normalized };
+  }
+
+  function updateSavedCar(existingCar, updates) {
+    return createSavedCar({
+      ...existingCar,
+      ...updates,
+      id: existingCar.id,
+      createdAt: existingCar.createdAt,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   global.CarSearchHarnessSavedCars = {
     savedCarStatuses,
     savedCarFields,
+    generateSavedCarId,
+    isHttpUrl,
     normalizeSavedCarDraft,
+    normalizeStoredSavedCar,
+    createSavedCar,
+    updateSavedCar,
   };
 })(globalThis);

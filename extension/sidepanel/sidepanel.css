@@ -107,6 +107,20 @@ input {
   padding: 9px 10px;
 }
 
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  font: inherit;
+  padding: 9px 10px;
+}
+
+textarea {
+  resize: vertical;
+}
+
 .chip-row {
   display: flex;
   margin-top: 8px;
@@ -158,6 +172,17 @@ input {
   opacity: 0.58;
 }
 
+.secondary-button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
 .status-line {
   min-height: 1.1rem;
   margin-top: 8px;
@@ -180,4 +205,81 @@ input {
   display: block;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.saved-car-form {
+  display: grid;
+  gap: 9px;
+}
+
+.form-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.saved-cars-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.saved-cars-empty,
+.saved-car-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 10px;
+}
+
+.saved-cars-empty {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.saved-car-card {
+  display: grid;
+  gap: 7px;
+}
+
+.saved-car-card__title {
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.saved-car-card__facts,
+.saved-car-card__meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.saved-car-card__notes {
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.saved-car-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.saved-car-card__actions button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 6px 9px;
+}
+
+.saved-car-card__actions button.is-danger {
+  color: #9b2f26;
 }
