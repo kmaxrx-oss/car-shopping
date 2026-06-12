@@ -359,6 +359,41 @@
     };
   }
 
+  function hasReaderCaptureFields(capture) {
+    return Boolean(
+      capture.title ||
+        capture.price ||
+        capture.location ||
+        capture.sellerName ||
+        capture.mileage ||
+        capture.transmission ||
+        capture.fuelType ||
+        capture.description ||
+        capture.imageUrl ||
+        capture.statusHint
+    );
+  }
+
+  function getReaderFailureMessage(readStatus) {
+    if (readStatus === "timeout") {
+      return "Reader timeout. URL captured only. Paste listing text to fill details.";
+    }
+
+    if (readStatus === "login_dialog_blocked") {
+      return "Facebook dialog could not be closed. Paste listing text instead.";
+    }
+
+    if (readStatus === "login_required") {
+      return "Facebook only returned login content. Paste listing text instead.";
+    }
+
+    if (readStatus === "could_not_parse") {
+      return "Reader opened the page but could not identify listing fields. Paste listing text instead.";
+    }
+
+    return "Reader unavailable. URL captured only. Paste listing text to fill details.";
+  }
+
   async function readListingFromLocalReader(url) {
     if (typeof window.fetch !== "function") {
       return { readStatus: "reader_unavailable", error: "Local reader requires browser fetch support." };
@@ -765,20 +800,20 @@
       setCaptureMessage("Reading listing from local reader...", "success");
 
       const readerResponse = await readListingFromLocalReader(result.value.url);
-      if (readerResponse.readStatus === "ok") {
-        const readerCapture = normalizeReaderResponse(readerResponse, result.value.url, result.value.sourceText);
+      const readerCapture = normalizeReaderResponse(readerResponse, result.value.url, result.value.sourceText);
+      if (readerResponse.readStatus === "ok" || hasReaderCaptureFields(readerCapture)) {
         prefillSavedCarFormFromCapture(readerCapture);
         renderCapturePreview(readerCapture);
-        setCaptureMessage("Listing read successfully.", "success");
+        setCaptureMessage(
+          readerResponse.readStatus === "login_dialog_closed"
+            ? "Listing read after closing Facebook dialog."
+            : "Listing read successfully.",
+          "success"
+        );
         return;
       }
 
-      const statusMessage = readerResponse.readStatus === "timeout"
-        ? "Reader timeout. URL captured only. Paste listing text to fill details."
-        : readerResponse.readStatus === "could_not_parse"
-          ? "Reader could not parse listing. URL captured only. Paste listing text to fill details."
-          : "Reader unavailable. URL captured only. Paste listing text to fill details.";
-      setCaptureMessage(statusMessage, "error");
+      setCaptureMessage(getReaderFailureMessage(readerResponse.readStatus), "error");
       renderCapturePreview(result.value);
       return;
     }

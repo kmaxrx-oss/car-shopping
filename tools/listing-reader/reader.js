@@ -37,6 +37,22 @@ function cleanTitle(value) {
     .replace(/^Marketplace\s*-\s*/i, "");
 }
 
+function hasUsefulFields(result) {
+  return Boolean(
+    result &&
+      (result.title ||
+        result.price ||
+        result.location ||
+        result.sellerName ||
+        result.mileage ||
+        result.transmission ||
+        result.fuelType ||
+        result.description ||
+        result.imageUrl ||
+        result.statusHint)
+  );
+}
+
 function extractFieldsFromText(rawText, hints = {}) {
   const text = normalizeWhitespace(rawText);
   const lines = String(rawText || "")
@@ -86,6 +102,153 @@ function extractFieldsFromText(rawText, hints = {}) {
   };
 }
 
+async function getFacebookDialogState(page) {
+  const state = await page.evaluate(() => {
+    const normalize = (value) => String(value || "").replace(/\s+/g, " ").trim();
+    const bodyText = normalize(document.body?.innerText || "");
+    const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+    const dialogTexts = dialogs.map((dialog) => normalize(dialog.innerText || dialog.textContent || ""));
+    const seeMoreOnFacebook = /see more on facebook/i.test(bodyText) || dialogTexts.some((text) => /see more on facebook/i.test(text));
+    const loginPrompt = /\b(log in|login|sign in|create new account|forgot account)\b/i.test(bodyText);
+    const closeButtons = Array.from(document.querySelectorAll('[aria-label="Close"], [aria-label="close"], [role="button"]')).filter((element) => {
+      const label = normalize(element.getAttribute("aria-label") || "");
+      const text = normalize(element.innerText || element.textContent || "");
+      return /^close$/i.test(label) || /^close$/i.test(text);
+    });
+
+    return {
+      dialogCount: dialogs.length,
+      closeButtonCount: closeButtons.length,
+      seeMoreOnFacebook,
+      loginPrompt,
+      bodyExcerpt: bodyText.slice(0, 600),
+    };
+  }).catch(() => ({
+    dialogCount: 0,
+    closeButtonCount: 0,
+    seeMoreOnFacebook: false,
+    loginPrompt: false,
+    bodyExcerpt: "",
+  }));
+
+  return {
+    ...state,
+    modalDetected: Boolean(state.dialogCount || state.seeMoreOnFacebook),
+  };
+}
+
+async function dismissFacebookLoginDialog(page) {
+  const before = await getFacebookDialogState(page);
+  const result = {
+    modalDetected: before.modalDetected,
+    closeButtonFound: before.closeButtonCount > 0,
+    clickAttempted: false,
+    clickSucceeded: false,
+    escapeAttempted: false,
+    escapeSucceeded: false,
+    closed: false,
+    blocked: false,
+    before,
+    after: before,
+  };
+
+  if (!before.modalDetected) {
+    return result;
+  }
+
+  const closeLocators = [
+    page.getByLabel("Close", { exact: true }).first(),
+    page.locator('[aria-label="Close"]').first(),
+    page.locator('[role="dialog"] [aria-label="Close"]').first(),
+  ];
+
+  for (const locator of closeLocators) {
+    const count = await locator.count().catch(() => 0);
+    if (!count) {
+      continue;
+    }
+
+    result.closeButtonFound = true;
+    result.clickAttempted = true;
+    await locator.click({ timeout: 3000 }).then(() => {
+      result.clickSucceeded = true;
+    }).catch(() => {});
+
+    const afterClick = await getFacebookDialogState(page);
+    result.after = afterClick;
+    if (!afterClick.modalDetected) {
+      result.closed = true;
+      return result;
+    }
+  }
+
+  result.escapeAttempted = true;
+  await page.keyboard.press("Escape").then(() => {
+    result.escapeSucceeded = true;
+  }).catch(() => {});
+
+  const afterEscape = await getFacebookDialogState(page);
+  result.after = afterEscape;
+  result.closed = !afterEscape.modalDetected;
+  result.blocked = !result.closed;
+  return result;
+}
+
+async function extractMetaFields(page) {
+  return page.evaluate(() => {
+    const getMeta = (selector) => document.querySelector(selector)?.getAttribute("content") || "";
+    return {
+      pageTitle: document.title || "",
+      ogTitle: getMeta('meta[property="og:title"], meta[name="og:title"]'),
+      ogDescription: getMeta('meta[property="og:description"], meta[name="og:description"], meta[name="description"]'),
+      ogImage: getMeta('meta[property="og:image"], meta[name="og:image"]'),
+    };
+  }).catch(() => ({}));
+}
+
+async function getRenderedListingText(page) {
+  const visibleText = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+  const snapshot = page.accessibility && typeof page.accessibility.snapshot === "function"
+    ? await page.accessibility.snapshot({ interestingOnly: false }).catch(() => null)
+    : null;
+  const meta = await extractMetaFields(page);
+  const rawText = [visibleText, meta.pageTitle, meta.ogTitle, meta.ogDescription, JSON.stringify(snapshot || {})]
+    .filter(Boolean)
+    .join("\n");
+
+  return { rawText, meta };
+}
+
+function chooseReadStatus(parsed, modalState, rawText) {
+  if (modalState.blocked) {
+    return "login_dialog_blocked";
+  }
+
+  if (parsed.unavailable) {
+    return "unavailable";
+  }
+
+  const hasFields = hasUsefulFields(parsed);
+  const hasCoreListingFields = Boolean(parsed.title && parsed.price && parsed.location);
+  if (hasCoreListingFields) {
+    return "ok";
+  }
+
+  if (modalState.modalDetected && modalState.closed && hasFields) {
+    return "login_dialog_closed";
+  }
+
+  if (hasFields) {
+    return "ok";
+  }
+
+  if (/\b(log in|login|sign in|sign up|create new account|forgot account)\b/i.test(rawText)) {
+    return "login_required";
+  }
+
+  return "could_not_parse";
+}
+
 async function loadPlaywright() {
   try {
     return await import("playwright");
@@ -115,28 +278,23 @@ async function readWithPlaywright(url) {
     page.setDefaultTimeout(DEFAULT_TIMEOUT_MS);
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: DEFAULT_TIMEOUT_MS });
     await page.waitForLoadState("networkidle", { timeout: Math.min(DEFAULT_TIMEOUT_MS, 10000) }).catch(() => {});
-
-    const visibleText = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-    const snapshot = page.accessibility && typeof page.accessibility.snapshot === "function"
-      ? await page.accessibility.snapshot({ interestingOnly: false }).catch(() => null)
-      : null;
-    const meta = await page.evaluate(() => {
-      const getMeta = (selector) => document.querySelector(selector)?.getAttribute("content") || "";
-      return {
-        pageTitle: document.title || "",
-        ogTitle: getMeta('meta[property="og:title"], meta[name="og:title"]'),
-        ogDescription: getMeta('meta[property="og:description"], meta[name="og:description"], meta[name="description"]'),
-        ogImage: getMeta('meta[property="og:image"], meta[name="og:image"]'),
-      };
-    }).catch(() => ({}));
-    const rawText = [visibleText, meta.pageTitle, meta.ogTitle, meta.ogDescription, JSON.stringify(snapshot || {})].filter(Boolean).join("\n");
-    const parsed = extractFieldsFromText(rawText, meta);
-
-    if (/log in|login|sign in/i.test(rawText) && !parsed.title && !parsed.price) {
-      return { ...parsed, readStatus: "login_required" };
+    const modalState = await dismissFacebookLoginDialog(page);
+    if (modalState.closed) {
+      await page.waitForLoadState("networkidle", { timeout: Math.min(DEFAULT_TIMEOUT_MS, 5000) }).catch(() => {});
     }
 
-    return parsed;
+    const { rawText, meta } = await getRenderedListingText(page);
+    const parsed = extractFieldsFromText(rawText, meta);
+    const readStatus = chooseReadStatus(parsed, modalState, rawText);
+
+    return {
+      ...parsed,
+      readStatus,
+      modalDetected: modalState.modalDetected,
+      closeButtonFound: modalState.closeButtonFound,
+      closeSucceeded: modalState.closed,
+      loginDialogBlocked: modalState.blocked,
+    };
   } catch (error) {
     const isTimeout = /timeout/i.test(error.message || "");
     return {
@@ -177,5 +335,6 @@ async function readListing(url) {
 module.exports = {
   emptyResult,
   extractFieldsFromText,
+  dismissFacebookLoginDialog,
   readListing,
 };
