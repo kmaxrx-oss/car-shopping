@@ -454,11 +454,20 @@ textarea {
   gap: 12px;
   padding: 12px;
   border-radius: var(--radius-xl);
+  max-height: calc(100vh - 30px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .toolbox.is-drag-over {
   outline: 3px solid rgba(32, 90, 74, 0.18);
   outline-offset: 4px;
+}
+
+.toolbox.is-drag-scrolling {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .toolbox-header h2 {
@@ -720,6 +729,9 @@ textarea {
   .toolbox {
     position: static;
     order: -1;
+    max-height: none;
+    overflow-y: visible;
+    overscroll-behavior: auto;
   }
 
   .hero,

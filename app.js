@@ -955,6 +955,128 @@
     });
   }
 
+  function isToolboxDragExcludedTarget(target) {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    return Boolean(
+      target.closest(
+        'input, textarea, select, button, a, [contenteditable="true"], [role="button"], .saved-car-notes'
+      )
+    );
+  }
+
+  function setupToolboxDragScroll() {
+    if (!els.toolbox || typeof els.toolbox.addEventListener !== "function" || typeof window.PointerEvent !== "function") {
+      return;
+    }
+
+    const dragState = {
+      pointerId: null,
+      startY: 0,
+      startScrollTop: 0,
+      dragging: false,
+      suppressClick: false,
+    };
+
+    const finishDrag = () => {
+      if (!dragState.pointerId) {
+        return;
+      }
+
+      dragState.pointerId = null;
+      dragState.startY = 0;
+      dragState.startScrollTop = 0;
+      dragState.dragging = false;
+      els.toolbox.classList.remove("is-drag-scrolling");
+
+      if (dragState.suppressClick) {
+        window.setTimeout(() => {
+          dragState.suppressClick = false;
+        }, 0);
+      } else {
+        dragState.suppressClick = false;
+      }
+    };
+
+    const onPointerDown = (event) => {
+      if (event.button !== 0 || isToolboxDragExcludedTarget(event.target)) {
+        return;
+      }
+
+      dragState.pointerId = event.pointerId;
+      dragState.startY = event.clientY;
+      dragState.startScrollTop = els.toolbox.scrollTop;
+      dragState.dragging = false;
+      dragState.suppressClick = false;
+
+      if (typeof els.toolbox.setPointerCapture === "function") {
+        try {
+          els.toolbox.setPointerCapture(event.pointerId);
+        } catch (error) {
+          // Pointer capture is optional; scroll still works without it.
+        }
+      }
+    };
+
+    const onPointerMove = (event) => {
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const deltaY = event.clientY - dragState.startY;
+      if (!dragState.dragging && Math.abs(deltaY) < 6) {
+        return;
+      }
+
+      if (!dragState.dragging) {
+        dragState.dragging = true;
+        els.toolbox.classList.add("is-drag-scrolling");
+      }
+
+      event.preventDefault();
+      els.toolbox.scrollTop = dragState.startScrollTop - deltaY;
+    };
+
+    const onPointerUpOrCancel = (event) => {
+      if (dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      if (dragState.dragging) {
+        dragState.suppressClick = true;
+      }
+
+      if (typeof els.toolbox.releasePointerCapture === "function") {
+        try {
+          els.toolbox.releasePointerCapture(event.pointerId);
+        } catch (error) {
+          // Ignore capture release failures.
+        }
+      }
+
+      finishDrag();
+    };
+
+    els.toolbox.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
+    window.addEventListener("pointerup", onPointerUpOrCancel);
+    window.addEventListener("pointercancel", onPointerUpOrCancel);
+    els.toolbox.addEventListener(
+      "click",
+      (event) => {
+        if (!dragState.suppressClick) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
+  }
+
   function attachEvents() {
     [els.minPrice, els.maxPrice, els.radius, els.daysListed, els.exact].forEach((input) => {
       input.addEventListener("input", refreshGeneratedLinks);
@@ -1008,6 +1130,7 @@
     els.savedCarForm.addEventListener("submit", handleSavedCarSubmit);
     els.savedCarCancel.addEventListener("click", resetSavedCarForm);
     els.savedCarsList.addEventListener("click", handleSavedCarsListClick);
+    setupToolboxDragScroll();
   }
 
   function initialize() {
