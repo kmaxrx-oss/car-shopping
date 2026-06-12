@@ -134,34 +134,37 @@
   }
 
   async function handleCaptureUse() {
+    if (!captureParser) {
+      setCaptureStatus("Capture parser unavailable. Reload the extension and try again.");
+      return;
+    }
+
     useCaptureButton.disabled = true;
-    const rawText = listingCaptureTextarea.value;
-
-    const result = captureParser.parseSavedCarCapture(rawText);
-    if (result.error) {
-      setCaptureStatus(result.error);
-      useCaptureButton.disabled = false;
-      return;
-    }
-
-    const capture = result.value;
-
-    if (!capture.url) {
-      setCaptureStatus("Capture needs a listing URL. Add the Facebook Marketplace URL to the text.");
-      useCaptureButton.disabled = false;
-      return;
-    }
-
-    const isUrlOnly = captureParser.isUrlOnlyCapture(rawText, capture);
-    const title = capture.title || capture.url;
-
-    if (findSavedCarByUrl(capture.url)) {
-      setCaptureStatus("Already saved.");
-      useCaptureButton.disabled = false;
-      return;
-    }
 
     try {
+      const rawText = listingCaptureTextarea.value;
+
+      const result = captureParser.parseSavedCarCapture(rawText);
+      if (result.error) {
+        setCaptureStatus(result.error);
+        return;
+      }
+
+      const capture = result.value;
+
+      if (!capture.url) {
+        setCaptureStatus("Capture needs a listing URL. Add the Facebook Marketplace URL to the text.");
+        return;
+      }
+
+      const isUrlOnly = captureParser.isUrlOnlyCapture(rawText, capture);
+      const title = capture.title || capture.url;
+
+      if (findSavedCarByUrl(capture.url)) {
+        setCaptureStatus("Already saved.");
+        return;
+      }
+
       const carResult = savedCars.createSavedCar({
         title,
         url: capture.url,
