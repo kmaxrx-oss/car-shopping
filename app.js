@@ -86,7 +86,16 @@
   function renderManualLink() {
     syncStateFromControls();
     const activeTier = getActiveTier();
-    const query = state.manualQuery || " ";
+
+    if (!state.manualQuery) {
+      els.manualLink.href = "#";
+      els.manualLink.textContent = "Enter a query to build a link";
+      els.manualUrl.textContent = "Awaiting input...";
+      els.activeTierLabel.textContent = `${activeTier.label} - ${activeTier.minYear}+ minYear`;
+      return;
+    }
+
+    const query = state.manualQuery;
     const url = buildMarketplaceUrl({
       query,
       minYear: activeTier.minYear,
@@ -102,6 +111,12 @@
       : "Build a link to see it here";
     els.manualUrl.textContent = url;
     els.activeTierLabel.textContent = `${activeTier.label} - ${activeTier.minYear}+ minYear`;
+  }
+
+  function refreshGeneratedLinks() {
+    syncStateFromControls();
+    renderTierSections();
+    renderManualLink();
   }
 
   function renderTierSections() {
@@ -175,13 +190,20 @@
   }
 
   function attachEvents() {
-    [els.minPrice, els.maxPrice, els.radius, els.daysListed, els.exact, els.manualQuery].forEach((input) => {
-      input.addEventListener("input", renderManualLink);
-      input.addEventListener("change", renderManualLink);
+    [els.minPrice, els.maxPrice, els.radius, els.daysListed, els.exact].forEach((input) => {
+      input.addEventListener("input", refreshGeneratedLinks);
+      input.addEventListener("change", refreshGeneratedLinks);
     });
+
+    els.manualQuery.addEventListener("input", renderManualLink);
+    els.manualQuery.addEventListener("change", renderManualLink);
 
     els.buildManualLink.addEventListener("click", () => {
       renderManualLink();
+      if (!state.manualQuery) {
+        return;
+      }
+
       if (els.manualLink.href && els.manualLink.href !== "#") {
         window.open(els.manualLink.href, "_blank", "noreferrer");
       }
