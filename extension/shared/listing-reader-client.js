@@ -1,12 +1,12 @@
 (function registerListingReaderClient(global) {
   const listingReaderEndpoint = "http://localhost:3137/read-listing";
-  const listingReaderTimeoutMs = 4000;
+  const listingReaderTimeoutMs = 10000;
 
   function isFacebookMarketplaceListingUrl(value) {
     try {
       const url = new URL(String(value || "").trim());
       return (
-        (url.hostname === "facebook.com" || url.hostname === "www.facebook.com") &&
+        (url.hostname === "facebook.com" || url.hostname === "www.facebook.com" || url.hostname === "m.facebook.com") &&
         /^\/marketplace\/item\/[^/]+\/?$/i.test(url.pathname)
       );
     } catch (error) {

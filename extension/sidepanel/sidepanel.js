@@ -481,6 +481,16 @@
     return "";
   }
 
+  function getReaderNote(car) {
+    if (!car.readStatus || car.readStatus === "ok" || car.readStatus === "login_dialog_closed") {
+      return "";
+    }
+    if (listingReader && typeof listingReader.getReaderFailureMessage === "function") {
+      return listingReader.getReaderFailureMessage(car.readStatus);
+    }
+    return `Reader: ${car.readStatus.replace(/_/g, " ")}`;
+  }
+
   function resetSavedCarForm() {
     savedCarFields.id.value = "";
     savedCarFields.title.value = "";
@@ -526,6 +536,7 @@
         const meta = formatTimestamp(car.updatedAt);
         const incompleteNote = getIncompleteSavedCarNote(car);
         const sourceNote = getSavedCarSourceNote(car);
+        const readerNote = getReaderNote(car);
         const extraFacts = [car.transmission, car.fuelType, car.statusHint]
           .filter(Boolean)
           .map((fact) => `<div class="saved-car-card__detail saved-car-card__detail--muted">${escapeHtml(fact)}</div>`)
@@ -542,6 +553,7 @@
             ${extraFacts}
             ${incompleteNote ? `<div class="saved-car-card__hint">${escapeHtml(incompleteNote)}</div>` : ""}
             ${sourceNote ? `<div class="saved-car-card__source">${escapeHtml(sourceNote)}</div>` : ""}
+            ${readerNote ? `<div class="saved-car-card__source">${escapeHtml(readerNote)}</div>` : ""}
             ${car.notes ? `<div class="saved-car-card__notes">${escapeHtml(car.notes)}</div>` : ""}
             ${meta ? `<div class="saved-car-card__meta">${escapeHtml(`Updated ${meta}`)}</div>` : ""}
             <div class="saved-car-card__actions">
