@@ -42,10 +42,22 @@ body {
   padding: 28px 0 48px;
 }
 
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 18px;
+  align-items: start;
+}
+
+.main-workspace {
+  min-width: 0;
+}
+
 .hero,
 .panel,
 .tier-section,
-.footer {
+.footer,
+.toolbox {
   border: 1px solid var(--panel-border);
   background: var(--panel);
   box-shadow: var(--shadow);
@@ -151,7 +163,10 @@ label {
 }
 
 input[type="number"],
-input[type="text"] {
+input[type="text"],
+input[type="url"],
+select,
+textarea {
   width: 100%;
   padding: 12px 13px;
   border: 1px solid rgba(34, 28, 20, 0.14);
@@ -162,9 +177,17 @@ input[type="text"] {
 }
 
 input[type="number"]:focus,
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="url"]:focus,
+select:focus,
+textarea:focus {
   outline: 3px solid rgba(32, 90, 74, 0.18);
   border-color: rgba(32, 90, 74, 0.42);
+}
+
+textarea {
+  min-height: 92px;
+  resize: vertical;
 }
 
 .toggle {
@@ -226,7 +249,8 @@ input[type="text"]:focus {
   gap: 8px;
 }
 
-.manual-form button {
+.manual-form button,
+.saved-car-actions button {
   padding: 13px 18px;
   background: var(--brand);
   color: #fff;
@@ -381,6 +405,175 @@ input[type="text"]:focus {
   color: var(--brand-strong);
 }
 
+.toolbox {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-xl);
+}
+
+.toolbox-header h2 {
+  font-size: 1.6rem;
+}
+
+.toolbox-section {
+  overflow: hidden;
+  border: 1px solid rgba(34, 28, 20, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 253, 248, 0.72);
+}
+
+.toolbox-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(34, 28, 20, 0.08);
+  background: rgba(32, 90, 74, 0.1);
+  color: var(--brand-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+}
+
+.saved-cars-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.toolbox-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.toolbox-panel[hidden] {
+  display: none;
+}
+
+.saved-car-form {
+  display: grid;
+  gap: 12px;
+}
+
+.form-error,
+.storage-warning {
+  margin: 0;
+  color: #9b2f26;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.storage-warning {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(155, 47, 38, 0.1);
+}
+
+.saved-car-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved-car-actions button,
+.saved-car-card button,
+.saved-car-card a {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.saved-car-actions .button-secondary,
+.saved-car-card button,
+.saved-car-card a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 12px;
+  background: rgba(32, 90, 74, 0.1);
+  color: var(--brand-strong);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.saved-car-card button.is-danger {
+  background: rgba(155, 47, 38, 0.1);
+  color: #7b261f;
+}
+
+.saved-car-actions button:hover,
+.saved-car-card button:hover,
+.saved-car-card a:hover {
+  transform: translateY(-1px);
+}
+
+.saved-cars-list {
+  display: grid;
+  gap: 10px;
+}
+
+.saved-cars-empty {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.saved-car-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(34, 28, 20, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.saved-car-card__title {
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.saved-car-card__status {
+  justify-self: start;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.saved-car-card__notes,
+.saved-car-card__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.saved-car-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .footer {
   margin-top: 18px;
   padding: 18px 22px;
@@ -393,6 +586,15 @@ input[type="text"]:focus {
 }
 
 @media (max-width: 1080px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbox {
+    position: static;
+    order: -1;
+  }
+
   .hero,
   .controls-grid {
     grid-template-columns: 1fr 1fr;
@@ -413,7 +615,8 @@ input[type="text"]:focus {
   .panel,
   .tier-header,
   .groups,
-  .footer {
+  .footer,
+  .toolbox {
     padding-left: 16px;
     padding-right: 16px;
   }

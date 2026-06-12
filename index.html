@@ -8,84 +8,139 @@
   </head>
   <body>
     <div class="page-shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">Local car search homebase</p>
-          <h1>Car Search Homebase</h1>
-          <p class="lede">
-            Static Facebook Marketplace link builder for the tiered vehicle model pool.
-            No scraping, no login automation, just fast clickable searches.
-          </p>
-        </div>
-        <div class="hero-note">
-          <div class="hero-note__label">Active tier for manual search</div>
-          <div id="active-tier-label" class="hero-note__value">Tier B - 2013+ models</div>
-        </div>
-      </header>
+      <div class="app-layout">
+        <div class="main-workspace">
+          <header class="hero">
+            <div>
+              <p class="eyebrow">Local car search homebase</p>
+              <h1>Car Search Homebase</h1>
+              <p class="lede">
+                Static Facebook Marketplace link builder for the tiered vehicle model pool.
+                No scraping, no login automation, just fast clickable searches.
+              </p>
+            </div>
+            <div class="hero-note">
+              <div class="hero-note__label">Active tier for manual search</div>
+              <div id="active-tier-label" class="hero-note__value">Tier B - 2013+ models</div>
+            </div>
+          </header>
 
-      <section class="panel controls-panel" aria-labelledby="controls-title">
-        <div class="panel-heading">
-          <h2 id="controls-title">Global controls</h2>
-          <p>These filters apply to every generated Marketplace link.</p>
+          <section class="panel controls-panel" aria-labelledby="controls-title">
+            <div class="panel-heading">
+              <h2 id="controls-title">Global controls</h2>
+              <p>These filters apply to every generated Marketplace link.</p>
+            </div>
+
+            <div class="controls-grid">
+              <label>
+                <span>Min price</span>
+                <input id="min-price" type="number" min="0" step="50" value="1500" />
+              </label>
+              <label>
+                <span>Max price</span>
+                <input id="max-price" type="number" min="0" step="50" value="4000" />
+              </label>
+              <label>
+                <span>Radius</span>
+                <input id="radius" type="number" min="1" step="1" value="100" />
+              </label>
+              <label>
+                <span>Days listed</span>
+                <input id="days-listed" type="number" min="1" step="1" value="7" />
+              </label>
+              <label class="toggle">
+                <span>Exact match</span>
+                <input id="exact-toggle" type="checkbox" checked />
+              </label>
+            </div>
+
+            <div class="tier-selector" role="tablist" aria-label="Active tier">
+              <button class="tier-chip is-active" data-tier-id="tier-a" type="button">Tier A</button>
+              <button class="tier-chip" data-tier-id="tier-b" type="button">Tier B</button>
+              <button class="tier-chip" data-tier-id="tier-c" type="button">Tier C</button>
+            </div>
+          </section>
+
+          <section class="panel manual-panel" aria-labelledby="manual-title">
+            <div class="panel-heading">
+              <h2 id="manual-title">Manual query</h2>
+              <p>Type any query, then build a Facebook Marketplace URL using the active tier.</p>
+            </div>
+
+            <div class="manual-form">
+              <label class="manual-input">
+                <span>Search query</span>
+                <input id="manual-query" type="text" placeholder="Example: sienna hybrid" />
+              </label>
+              <button id="build-manual-link" type="button">Build search link</button>
+            </div>
+
+            <div class="manual-result">
+              <a id="manual-link" href="#" target="_blank" rel="noreferrer">Build a link to see it here</a>
+              <code id="manual-url" class="manual-url">Awaiting input...</code>
+            </div>
+          </section>
+
+          <main id="tier-sections" class="tier-sections" aria-live="polite"></main>
+
+          <footer class="footer">
+            <p>
+              Seed data only. The app builds Marketplace searches from local model lists and static tier rules.
+            </p>
+          </footer>
         </div>
 
-        <div class="controls-grid">
-          <label>
-            <span>Min price</span>
-            <input id="min-price" type="number" min="0" step="50" value="1500" />
-          </label>
-          <label>
-            <span>Max price</span>
-            <input id="max-price" type="number" min="0" step="50" value="4000" />
-          </label>
-          <label>
-            <span>Radius</span>
-            <input id="radius" type="number" min="1" step="1" value="100" />
-          </label>
-          <label>
-            <span>Days listed</span>
-            <input id="days-listed" type="number" min="1" step="1" value="7" />
-          </label>
-          <label class="toggle">
-            <span>Exact match</span>
-            <input id="exact-toggle" type="checkbox" checked />
-          </label>
-        </div>
+        <aside class="toolbox" aria-labelledby="toolbox-title">
+          <header class="toolbox-header">
+            <p class="eyebrow">Toolbox</p>
+            <h2 id="toolbox-title">Toolbox</h2>
+          </header>
 
-        <div class="tier-selector" role="tablist" aria-label="Active tier">
-          <button class="tier-chip is-active" data-tier-id="tier-a" type="button">Tier A</button>
-          <button class="tier-chip" data-tier-id="tier-b" type="button">Tier B</button>
-          <button class="tier-chip" data-tier-id="tier-c" type="button">Tier C</button>
-        </div>
-      </section>
+          <section class="toolbox-section" aria-labelledby="saved-cars-title">
+            <button id="saved-cars-toggle" class="toolbox-toggle" type="button" aria-expanded="true" aria-controls="saved-cars-panel">
+              <span id="saved-cars-title">Saved Cars</span>
+              <span id="saved-cars-count" class="saved-cars-count">0</span>
+            </button>
 
-      <section class="panel manual-panel" aria-labelledby="manual-title">
-        <div class="panel-heading">
-          <h2 id="manual-title">Manual query</h2>
-          <p>Type any query, then build a Facebook Marketplace URL using the active tier.</p>
-        </div>
+            <div id="saved-cars-panel" class="toolbox-panel">
+              <form id="saved-car-form" class="saved-car-form" novalidate>
+                <input id="saved-car-id" type="hidden" />
+                <label>
+                  <span>Listing title</span>
+                  <input id="saved-car-title" type="text" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Listing URL</span>
+                  <input id="saved-car-url" type="url" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select id="saved-car-status">
+                    <option>Interested</option>
+                    <option>Messaged</option>
+                    <option>Maybe</option>
+                    <option>Rejected</option>
+                    <option>Gone / Removed</option>
+                    <option>Bought / Dead end</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Notes</span>
+                  <textarea id="saved-car-notes" rows="4"></textarea>
+                </label>
+                <p id="saved-car-error" class="form-error" role="alert"></p>
+                <div class="saved-car-actions">
+                  <button id="saved-car-submit" type="submit">Save car</button>
+                  <button id="saved-car-cancel" class="button-secondary" type="button" hidden>Cancel edit</button>
+                </div>
+              </form>
 
-        <div class="manual-form">
-          <label class="manual-input">
-            <span>Search query</span>
-            <input id="manual-query" type="text" placeholder="Example: sienna hybrid" />
-          </label>
-          <button id="build-manual-link" type="button">Build search link</button>
-        </div>
-
-        <div class="manual-result">
-          <a id="manual-link" href="#" target="_blank" rel="noreferrer">Build a link to see it here</a>
-          <code id="manual-url" class="manual-url">Awaiting input...</code>
-        </div>
-      </section>
-
-      <main id="tier-sections" class="tier-sections" aria-live="polite"></main>
-
-      <footer class="footer">
-        <p>
-          Seed data only. The app builds Marketplace searches from local model lists and static tier rules.
-        </p>
-      </footer>
+              <p id="saved-cars-storage-warning" class="storage-warning" hidden></p>
+              <div id="saved-cars-list" class="saved-cars-list" aria-live="polite"></div>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <script src="data/vehicles.js"></script>

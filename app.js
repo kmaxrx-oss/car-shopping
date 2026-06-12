@@ -1,6 +1,8 @@
 (function () {
   const vehicles = window.CAR_SEARCH_HOMEBASE_VEHICLES || [];
   const tierById = new Map(vehicles.map((tier) => [tier.id, tier]));
+  const savedCarsStorageKey = "carShopping.savedCars.v1";
+  const savedCarStatuses = ["Interested", "Messaged", "Maybe", "Rejected", "Gone / Removed", "Bought / Dead end"];
 
   const state = {
     tierId: vehicles[1] ? vehicles[1].id : vehicles[0]?.id || "tier-b",
@@ -10,6 +12,7 @@
     daysListed: 7,
     exact: true,
     manualQuery: "",
+    savedCars: [],
   };
 
   const baseUrl = "https://www.facebook.com/marketplace/103108469729444/search/";
@@ -27,6 +30,20 @@
     manualUrl: document.getElementById("manual-url"),
     buildManualLink: document.getElementById("build-manual-link"),
     tierButtons: Array.from(document.querySelectorAll(".tier-chip")),
+    savedCarsToggle: document.getElementById("saved-cars-toggle"),
+    savedCarsPanel: document.getElementById("saved-cars-panel"),
+    savedCarsCount: document.getElementById("saved-cars-count"),
+    savedCarsList: document.getElementById("saved-cars-list"),
+    savedCarForm: document.getElementById("saved-car-form"),
+    savedCarId: document.getElementById("saved-car-id"),
+    savedCarTitle: document.getElementById("saved-car-title"),
+    savedCarUrl: document.getElementById("saved-car-url"),
+    savedCarStatus: document.getElementById("saved-car-status"),
+    savedCarNotes: document.getElementById("saved-car-notes"),
+    savedCarError: document.getElementById("saved-car-error"),
+    savedCarSubmit: document.getElementById("saved-car-submit"),
+    savedCarCancel: document.getElementById("saved-car-cancel"),
+    savedCarsStorageWarning: document.getElementById("saved-cars-storage-warning"),
   };
 
   function escapeHtml(value) {
@@ -41,6 +58,89 @@
   function toPositiveNumber(value, fallback) {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  }
+
+  function generateSavedCarId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+
+    return `saved-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function formatTimestamp(value) {
+    if (!value) {
+      return "";
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+  }
+
+  function showSavedCarError(message) {
+    els.savedCarError.textContent = message;
+  }
+
+  function clearSavedCarError() {
+    showSavedCarError("");
+  }
+
+  function setStorageWarning(message) {
+    els.savedCarsStorageWarning.textContent = message;
+    els.savedCarsStorageWarning.hidden = !message;
+  }
+
+  function normalizeSavedCar(candidate) {
+    if (!candidate || typeof candidate !== "object") {
+      return null;
+    }
+
+    const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+    const url = typeof candidate.url === "string" ? candidate.url.trim() : "";
+    if (!title || !url) {
+      return null;
+    }
+
+    return {
+      id: typeof candidate.id === "string" && candidate.id ? candidate.id : generateSavedCarId(),
+      title,
+      url,
+      status: savedCarStatuses.includes(candidate.status) ? candidate.status : "Interested",
+      notes: typeof candidate.notes === "string" ? candidate.notes : "",
+      createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : new Date().toISOString(),
+      updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : new Date().toISOString(),
+    };
+  }
+
+  function loadSavedCars() {
+    setStorageWarning("");
+
+    try {
+      const raw = window.localStorage.getItem(savedCarsStorageKey);
+      if (!raw) {
+        state.savedCars = [];
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        throw new Error("Saved cars storage was not an array.");
+      }
+
+      state.savedCars = parsed.map(normalizeSavedCar).filter(Boolean);
+    } catch (error) {
+      state.savedCars = [];
+      setStorageWarning("Saved cars data could not be read, so the shortlist started empty.");
+    }
+  }
+
+  function saveSavedCars() {
+    try {
+      window.localStorage.setItem(savedCarsStorageKey, JSON.stringify(state.savedCars));
+      setStorageWarning("");
+    } catch (error) {
+      setStorageWarning("Saved cars could not be written to this browser.");
+    }
   }
 
   function buildMarketplaceUrl({ query, minYear, minPrice, maxPrice, radius, daysListed, exact }) {
@@ -183,6 +283,167 @@
       .join("");
   }
 
+  function resetSavedCarForm() {
+    els.savedCarId.value = "";
+    els.savedCarTitle.value = "";
+    els.savedCarUrl.value = "";
+    els.savedCarStatus.value = "Interested";
+    els.savedCarNotes.value = "";
+    els.savedCarSubmit.textContent = "Save car";
+    els.savedCarCancel.hidden = true;
+    clearSavedCarError();
+  }
+
+  function validateSavedCarForm() {
+    const title = els.savedCarTitle.value.trim();
+    const url = els.savedCarUrl.value.trim();
+    const status = savedCarStatuses.includes(els.savedCarStatus.value) ? els.savedCarStatus.value : "Interested";
+    const notes = els.savedCarNotes.value.trim();
+
+    if (!title) {
+      return { error: "Listing title is required." };
+    }
+
+    if (!url) {
+      return { error: "Listing URL is required." };
+    }
+
+    try {
+      const parsedUrl = new URL(url);
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return { error: "Listing URL must start with http or https." };
+      }
+    } catch (error) {
+      return { error: "Listing URL must be a valid http or https URL." };
+    }
+
+    return { value: { title, url, status, notes } };
+  }
+
+  function renderSavedCars() {
+    els.savedCarsCount.textContent = String(state.savedCars.length);
+
+    if (!state.savedCars.length) {
+      els.savedCarsList.innerHTML = '<p class="saved-cars-empty">No saved cars yet. Paste a listing URL above to start a shortlist.</p>';
+      return;
+    }
+
+    els.savedCarsList.innerHTML = state.savedCars
+      .map((car) => {
+        const savedAt = formatTimestamp(car.createdAt);
+        const updatedAt = formatTimestamp(car.updatedAt);
+        const timestamp = updatedAt && updatedAt !== savedAt ? `Updated ${updatedAt}` : savedAt ? `Saved ${savedAt}` : "";
+
+        return `
+          <article class="saved-car-card" data-saved-car-id="${escapeHtml(car.id)}">
+            <div class="saved-car-card__title">${escapeHtml(car.title)}</div>
+            <div class="saved-car-card__status">${escapeHtml(car.status)}</div>
+            ${car.notes ? `<p class="saved-car-card__notes">${escapeHtml(car.notes)}</p>` : ""}
+            ${timestamp ? `<p class="saved-car-card__meta">${escapeHtml(timestamp)}</p>` : ""}
+            <div class="saved-car-card__actions">
+              <a href="${escapeHtml(car.url)}" target="_blank" rel="noreferrer">Open</a>
+              <button type="button" data-action="edit" data-id="${escapeHtml(car.id)}">Edit</button>
+              <button class="is-danger" type="button" data-action="delete" data-id="${escapeHtml(car.id)}">Delete</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+  }
+
+  function handleSavedCarSubmit(event) {
+    event.preventDefault();
+    const result = validateSavedCarForm();
+    if (result.error) {
+      showSavedCarError(result.error);
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const editingId = els.savedCarId.value;
+    const existingCar = state.savedCars.find((car) => car.id === editingId);
+
+    if (existingCar) {
+      existingCar.title = result.value.title;
+      existingCar.url = result.value.url;
+      existingCar.status = result.value.status;
+      existingCar.notes = result.value.notes;
+      existingCar.updatedAt = now;
+    } else {
+      state.savedCars.unshift({
+        id: generateSavedCarId(),
+        title: result.value.title,
+        url: result.value.url,
+        status: result.value.status,
+        notes: result.value.notes,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    saveSavedCars();
+    resetSavedCarForm();
+    renderSavedCars();
+  }
+
+  function editSavedCar(id) {
+    const car = state.savedCars.find((savedCar) => savedCar.id === id);
+    if (!car) {
+      return;
+    }
+
+    els.savedCarId.value = car.id;
+    els.savedCarTitle.value = car.title;
+    els.savedCarUrl.value = car.url;
+    els.savedCarStatus.value = car.status;
+    els.savedCarNotes.value = car.notes;
+    els.savedCarSubmit.textContent = "Update car";
+    els.savedCarCancel.hidden = false;
+    clearSavedCarError();
+    els.savedCarTitle.focus();
+  }
+
+  function deleteSavedCar(id) {
+    const car = state.savedCars.find((savedCar) => savedCar.id === id);
+    if (!car) {
+      return;
+    }
+
+    if (typeof window.confirm === "function" && !window.confirm(`Delete "${car.title}" from Saved Cars?`)) {
+      return;
+    }
+
+    state.savedCars = state.savedCars.filter((savedCar) => savedCar.id !== id);
+    saveSavedCars();
+    renderSavedCars();
+
+    if (els.savedCarId.value === id) {
+      resetSavedCarForm();
+    }
+  }
+
+  function handleSavedCarsListClick(event) {
+    const actionButton = event.target.closest("button[data-action]");
+    if (!actionButton) {
+      return;
+    }
+
+    const id = actionButton.dataset.id;
+    if (actionButton.dataset.action === "edit") {
+      editSavedCar(id);
+    }
+
+    if (actionButton.dataset.action === "delete") {
+      deleteSavedCar(id);
+    }
+  }
+
+  function toggleSavedCarsPanel() {
+    const isExpanded = els.savedCarsToggle.getAttribute("aria-expanded") === "true";
+    els.savedCarsToggle.setAttribute("aria-expanded", String(!isExpanded));
+    els.savedCarsPanel.hidden = isExpanded;
+  }
+
   function syncTierButtonState() {
     els.tierButtons.forEach((button) => {
       button.classList.toggle("is-active", button.dataset.tierId === state.tierId);
@@ -216,6 +477,11 @@
         renderManualLink();
       });
     });
+
+    els.savedCarsToggle.addEventListener("click", toggleSavedCarsPanel);
+    els.savedCarForm.addEventListener("submit", handleSavedCarSubmit);
+    els.savedCarCancel.addEventListener("click", resetSavedCarForm);
+    els.savedCarsList.addEventListener("click", handleSavedCarsListClick);
   }
 
   function initialize() {
@@ -225,6 +491,8 @@
     }
 
     renderTierSections();
+    loadSavedCars();
+    renderSavedCars();
     attachEvents();
     syncTierButtonState();
     renderManualLink();

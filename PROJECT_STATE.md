@@ -2,7 +2,7 @@
 
 ## Current goal
 
-Create a local, static car-search homebase that preserves the vehicle tier and model context and generates clickable Facebook Marketplace search URLs.
+Create a local, static car-search homebase that preserves the vehicle tier and model context, generates clickable Facebook Marketplace search URLs, and provides a manual Saved Cars shortlist.
 
 ## Current tier logic
 
@@ -19,6 +19,26 @@ Base pattern:
 `https://www.facebook.com/marketplace/103108469729444/search/?query=hybrid&minPrice=1500&maxPrice=4000&minYear=2013&category_id=546583916084032&radius=100&daysSinceListed=7&sortBy=creation_time_descend&exact=true`
 
 The app preserves the fixed Marketplace location, category, radius, price range, sort order, and exact-match setting while replacing `query` and `minYear` from the selected model or manual query.
+
+## Saved Cars storage
+
+The first toolbox feature is `Saved Cars`.
+
+Storage key:
+
+`carShopping.savedCars.v1`
+
+Stored object shape:
+
+- `id`
+- `title`
+- `url`
+- `status`
+- `notes`
+- `createdAt`
+- `updatedAt`
+
+This is browser-local `localStorage` only. Saved listing URLs are opened manually by the user; the app does not fetch or inspect them.
 
 ## Ordering heuristic
 
@@ -41,4 +61,6 @@ The app does not turn that heuristic into a scoring engine. It is only used to o
 - Listing ingestion
 - Price analysis
 - Ranking/scoring algorithm
+- Sold/removed listing detection
+- Browser extension or bookmarklet behavior
 - Vehicle-detail research expansion beyond preserving the seed structure
