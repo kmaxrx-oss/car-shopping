@@ -39,6 +39,20 @@
     }
   }
 
+  function normalizeSavedCarUrl(value) {
+    try {
+      const url = new URL(String(value || "").trim());
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return "";
+      }
+
+      url.hash = "";
+      return url.href;
+    } catch (error) {
+      return "";
+    }
+  }
+
   function normalizeSavedCarDraft(candidate) {
     const source = candidate && typeof candidate === "object" ? candidate : {};
     return {
@@ -65,7 +79,8 @@
 
   function normalizeStoredSavedCar(candidate) {
     const draft = normalizeSavedCarDraft(candidate);
-    if (!draft.title.trim() || !isHttpUrl(draft.url.trim())) {
+    const normalizedUrl = normalizeSavedCarUrl(draft.url);
+    if (!draft.title.trim() || !normalizedUrl) {
       return null;
     }
 
@@ -74,7 +89,7 @@
       ...draft,
       id: draft.id || generateSavedCarId(),
       title: draft.title.trim(),
-      url: draft.url.trim(),
+      url: normalizedUrl,
       price: draft.price.trim(),
       location: draft.location.trim(),
       sellerName: draft.sellerName.trim(),
@@ -122,6 +137,7 @@
     savedCarFields,
     generateSavedCarId,
     isHttpUrl,
+    normalizeSavedCarUrl,
     normalizeSavedCarDraft,
     normalizeStoredSavedCar,
     createSavedCar,

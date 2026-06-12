@@ -77,7 +77,7 @@ The sidepanel supports:
 - delete
 - opening a saved-car URL through the extension service worker
 
-One-click active-tab save is deferred. Reading the active tab title and URL would require `tabs`, host permissions, or an `activeTab` permission flow. This tranche adds only the required `storage` permission.
+One-click active-tab save uses the `tabs` permission to request current-tab title and URL metadata from the sidepanel. `activeTab` was tested first, but did not expose usable title/URL metadata in the unpacked sidepanel runtime check. The button creates a saved car immediately with default `Interested` status, preserves the existing saved-car field contract, and prevents duplicate saves by normalized URL.
 
 ## Deferred work
 

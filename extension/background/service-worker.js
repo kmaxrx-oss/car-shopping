@@ -87,9 +87,38 @@ async function openOrUpdateSavedCarTab(url) {
   };
 }
 
+async function getActiveTabMetadata() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab || !isAllowedHttpUrl(tab.url)) {
+    return {
+      status: "error",
+      message: "Current tab cannot be saved as a car.",
+    };
+  }
+
+  return {
+    status: "ok",
+    title: tab.title || tab.url,
+    url: tab.url,
+  };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || !["OPEN_SEARCH_TAB", "OPEN_SAVED_CAR_TAB"].includes(message.type)) {
+  if (!message || !["OPEN_SEARCH_TAB", "OPEN_SAVED_CAR_TAB", "GET_ACTIVE_TAB_METADATA"].includes(message.type)) {
     return false;
+  }
+
+  if (message.type === "GET_ACTIVE_TAB_METADATA") {
+    getActiveTabMetadata()
+      .then(sendResponse)
+      .catch(() => {
+        sendResponse({
+          status: "error",
+          message: "Current tab cannot be saved as a car.",
+        });
+      });
+
+    return true;
   }
 
   if (message.type === "OPEN_SAVED_CAR_TAB") {

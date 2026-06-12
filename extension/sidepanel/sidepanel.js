@@ -10,6 +10,7 @@
   const savedCarList = document.getElementById("saved-cars-list");
   const savedCarStatusLine = document.getElementById("saved-car-status-line");
   const cancelEditButton = document.getElementById("cancel-edit-button");
+  const saveCurrentTabButton = document.getElementById("save-current-tab-button");
   const savedCarFields = {
     id: document.getElementById("saved-car-id"),
     title: document.getElementById("saved-car-title"),
@@ -171,6 +172,15 @@
     renderSavedCars();
   }
 
+  function findSavedCarByUrl(url) {
+    const normalizedUrl = savedCars.normalizeSavedCarUrl(url);
+    if (!normalizedUrl) {
+      return null;
+    }
+
+    return savedCarRecords.find((car) => savedCars.normalizeSavedCarUrl(car.url) === normalizedUrl) || null;
+  }
+
   function editSavedCar(id) {
     const car = savedCarRecords.find((savedCar) => savedCar.id === id);
     if (!car) {
@@ -214,6 +224,44 @@
     });
 
     setSavedCarStatus(response && response.status === "ok" ? `Opened ${car.title}.` : response?.message || "Saved car could not be opened.");
+  }
+
+  async function saveCurrentTab() {
+    saveCurrentTabButton.disabled = true;
+    setSavedCarStatus("Reading current tab...");
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "GET_ACTIVE_TAB_METADATA" });
+      if (!response || response.status !== "ok" || !savedCars.isHttpUrl(response.url)) {
+        setSavedCarStatus("Current tab cannot be saved as a car.");
+        return;
+      }
+
+      if (findSavedCarByUrl(response.url)) {
+        setSavedCarStatus("Already saved.");
+        return;
+      }
+
+      const result = savedCars.createSavedCar({
+        title: response.title || response.url,
+        url: response.url,
+        status: "Interested",
+        sourceText: `Saved from active tab: ${response.url}`,
+      });
+
+      if (result.error) {
+        setSavedCarStatus(result.error);
+        return;
+      }
+
+      savedCarRecords = [result.value, ...savedCarRecords];
+      await persistSavedCars(`Saved current tab: ${result.value.title}.`);
+      resetSavedCarForm();
+    } catch (error) {
+      setSavedCarStatus(error.message || "Current tab cannot be saved as a car.");
+    } finally {
+      saveCurrentTabButton.disabled = false;
+    }
   }
 
   tabs.addEventListener("click", (event) => {
@@ -289,6 +337,8 @@
     resetSavedCarForm();
     setSavedCarStatus("");
   });
+
+  saveCurrentTabButton.addEventListener("click", saveCurrentTab);
 
   savedCarList.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-action]");
