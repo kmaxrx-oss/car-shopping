@@ -71,13 +71,13 @@ The static app currently uses browser `localStorage` under `carShopping.savedCar
 
 The sidepanel supports:
 
-- manual saved-car add with title, URL, price, location, status, and notes
+- manual saved-car add with title, URL, price, location, seller, mileage, status, and notes
 - saved-car list rendering
 - status/notes edit through the same form
 - delete
 - opening a saved-car URL through the extension service worker
 
-One-click active-tab save uses the `tabs` permission to request current-tab title and URL metadata from the sidepanel. `activeTab` was tested first, but did not expose usable title/URL metadata in the unpacked sidepanel runtime check. The button creates a saved car immediately with default `Interested` status, preserves the existing saved-car field contract, and prevents duplicate saves by normalized URL.
+One-click active-tab save uses the `tabs` permission to request current-tab title and URL metadata from the sidepanel. `activeTab` was tested first, but did not expose usable title/URL metadata in the unpacked sidepanel runtime check. The button creates a saved car immediately with default `Interested` status, preserves the existing saved-car field contract, prevents duplicate saves by normalized URL, and now renders clearly as a URL-only/incomplete save until richer listing details are added.
 
 ## Deferred work
 

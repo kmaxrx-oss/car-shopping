@@ -17,6 +17,8 @@
     url: document.getElementById("saved-car-url"),
     price: document.getElementById("saved-car-price"),
     location: document.getElementById("saved-car-location"),
+    sellerName: document.getElementById("saved-car-seller-name"),
+    mileage: document.getElementById("saved-car-mileage"),
     status: document.getElementById("saved-car-status"),
     notes: document.getElementById("saved-car-notes"),
   };
@@ -98,12 +100,123 @@
     savedCarStatusLine.textContent = message;
   }
 
+  function formatTimestamp(value) {
+    if (!value) {
+      return "";
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+  }
+
+  function compactUrl(url) {
+    const normalized = savedCars.normalizeSavedCarUrl(url);
+    if (!normalized) {
+      return "";
+    }
+
+    const compact = normalized.replace(/^https?:\/\//i, "");
+    return compact.length > 58 ? `${compact.slice(0, 55)}...` : compact;
+  }
+
+  function formatMileage(mileage) {
+    const trimmed = String(mileage || "").trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    return /(mile| mi\b)/i.test(trimmed) ? trimmed : `Driven ${trimmed} miles`;
+  }
+
+  function getMissingCriticalFields(car) {
+    const missing = [];
+    if (!car.price) {
+      missing.push("price");
+    }
+    if (!car.location) {
+      missing.push("town");
+    }
+    if (!car.sellerName) {
+      missing.push("seller");
+    }
+    if (!car.mileage) {
+      missing.push("mileage");
+    }
+    return missing;
+  }
+
+  function getSavedCarSourceType(car) {
+    const sourceText = String(car.sourceText || "").trim();
+    if (!sourceText) {
+      return "";
+    }
+
+    if (sourceText.startsWith("Saved from active tab:")) {
+      return "active_tab";
+    }
+
+    const sourceWithoutShortcutWrapper = sourceText
+      .replace(/^\s*\[InternetShortcut\]\s*$/gim, "")
+      .replace(/^\s*URL=/gim, "")
+      .trim();
+
+    if (
+      sourceWithoutShortcutWrapper &&
+      savedCars.normalizeSavedCarUrl(sourceWithoutShortcutWrapper) === savedCars.normalizeSavedCarUrl(car.url)
+    ) {
+      return "url_only";
+    }
+
+    return "capture";
+  }
+
+  function getIncompleteSavedCarNote(car) {
+    const missingFields = getMissingCriticalFields(car);
+    if (!missingFields.length) {
+      return "";
+    }
+
+    const sourceType = getSavedCarSourceType(car);
+    if (sourceType === "active_tab" || sourceType === "url_only") {
+      return `Saved URL only - missing ${missingFields.join(", ")}`;
+    }
+
+    if (!car.price && !car.location && !car.sellerName && !car.mileage) {
+      return `Saved listing is incomplete - missing ${missingFields.join(", ")}`;
+    }
+
+    return "";
+  }
+
+  function getSavedCarSourceNote(car) {
+    const sourceType = getSavedCarSourceType(car);
+    if (sourceType === "active_tab") {
+      return "Source: Saved from active tab";
+    }
+
+    if (sourceType === "url_only") {
+      return `Source: ${compactUrl(car.url) || "Listing URL only"}`;
+    }
+
+    if (car.sourceText && /facebook\.com\/marketplace/i.test(car.sourceText)) {
+      return "Source: Facebook Marketplace capture";
+    }
+
+    if (car.sourceText) {
+      return "Source: Listing capture text saved";
+    }
+
+    return "";
+  }
+
   function resetSavedCarForm() {
     savedCarFields.id.value = "";
     savedCarFields.title.value = "";
     savedCarFields.url.value = "";
     savedCarFields.price.value = "";
     savedCarFields.location.value = "";
+    savedCarFields.sellerName.value = "";
+    savedCarFields.mileage.value = "";
     savedCarFields.status.value = "Interested";
     savedCarFields.notes.value = "";
     cancelEditButton.hidden = true;
@@ -123,6 +236,8 @@
       url: savedCarFields.url.value,
       price: savedCarFields.price.value,
       location: savedCarFields.location.value,
+      sellerName: savedCarFields.sellerName.value,
+      mileage: savedCarFields.mileage.value,
       status: savedCarFields.status.value,
       notes: savedCarFields.notes.value,
     };
@@ -136,19 +251,27 @@
 
     savedCarList.innerHTML = savedCarRecords
       .map((car) => {
-        const facts = [car.price, car.location, car.sellerName, car.mileage, car.transmission, car.fuelType, car.statusHint]
+        const meta = formatTimestamp(car.updatedAt);
+        const incompleteNote = getIncompleteSavedCarNote(car);
+        const sourceNote = getSavedCarSourceNote(car);
+        const extraFacts = [car.transmission, car.fuelType, car.statusHint]
           .filter(Boolean)
-          .map((fact) => escapeHtml(fact))
-          .join(" | ");
-        const meta = car.updatedAt ? `Updated ${new Date(car.updatedAt).toLocaleString()}` : "";
+          .map((fact) => `<div class="saved-car-card__detail saved-car-card__detail--muted">${escapeHtml(fact)}</div>`)
+          .join("");
 
         return `
           <article class="saved-car-card" data-saved-car-id="${escapeHtml(car.id)}">
             <div class="saved-car-card__title">${escapeHtml(car.title)}</div>
-            ${facts ? `<div class="saved-car-card__facts">${facts}</div>` : ""}
-            <div class="saved-car-card__facts">${escapeHtml(car.status)}</div>
+            ${car.price ? `<div class="saved-car-card__detail">${escapeHtml(car.price)}</div>` : ""}
+            ${car.location ? `<div class="saved-car-card__detail">${escapeHtml(car.location)}</div>` : ""}
+            ${car.sellerName ? `<div class="saved-car-card__detail">${escapeHtml(car.sellerName)}</div>` : ""}
+            <div class="saved-car-card__status">${escapeHtml(car.status)}</div>
+            ${car.mileage ? `<div class="saved-car-card__detail">${escapeHtml(formatMileage(car.mileage))}</div>` : ""}
+            ${extraFacts}
+            ${incompleteNote ? `<div class="saved-car-card__hint">${escapeHtml(incompleteNote)}</div>` : ""}
+            ${sourceNote ? `<div class="saved-car-card__source">${escapeHtml(sourceNote)}</div>` : ""}
             ${car.notes ? `<div class="saved-car-card__notes">${escapeHtml(car.notes)}</div>` : ""}
-            ${meta ? `<div class="saved-car-card__meta">${escapeHtml(meta)}</div>` : ""}
+            ${meta ? `<div class="saved-car-card__meta">${escapeHtml(`Updated ${meta}`)}</div>` : ""}
             <div class="saved-car-card__actions">
               <button type="button" data-action="open" data-id="${escapeHtml(car.id)}">Open</button>
               <button type="button" data-action="edit" data-id="${escapeHtml(car.id)}">Edit</button>
@@ -192,6 +315,8 @@
     savedCarFields.url.value = car.url;
     savedCarFields.price.value = car.price;
     savedCarFields.location.value = car.location;
+    savedCarFields.sellerName.value = car.sellerName;
+    savedCarFields.mileage.value = car.mileage;
     savedCarFields.status.value = car.status;
     savedCarFields.notes.value = car.notes;
     cancelEditButton.hidden = false;

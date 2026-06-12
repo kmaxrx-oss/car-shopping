@@ -249,11 +249,36 @@ textarea {
   font-weight: 800;
 }
 
-.saved-car-card__facts,
+.saved-car-card__detail,
+.saved-car-card__status,
+.saved-car-card__hint,
+.saved-car-card__source,
 .saved-car-card__meta {
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.saved-car-card__status {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.saved-car-card__detail {
+  color: var(--ink);
+}
+
+.saved-car-card__detail--muted {
+  color: var(--muted);
+}
+
+.saved-car-card__hint {
+  color: #8a5a12;
+  font-weight: 700;
+}
+
+.saved-car-card__source {
+  color: var(--brand);
 }
 
 .saved-car-card__notes {
