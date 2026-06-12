@@ -38,6 +38,7 @@
     savedCarCapture: document.getElementById("saved-car-capture"),
     savedCarCaptureUse: document.getElementById("saved-car-capture-use"),
     savedCarCaptureMessage: document.getElementById("saved-car-capture-message"),
+    savedCarCapturePreview: document.getElementById("saved-car-capture-preview"),
     savedCarForm: document.getElementById("saved-car-form"),
     savedCarId: document.getElementById("saved-car-id"),
     savedCarSourceText: document.getElementById("saved-car-source-text"),
@@ -92,6 +93,35 @@
   function setCaptureMessage(message, tone) {
     els.savedCarCaptureMessage.textContent = message;
     els.savedCarCaptureMessage.classList.toggle("is-success", tone === "success");
+  }
+
+  function clearCapturePreview() {
+    els.savedCarCapturePreview.hidden = true;
+    els.savedCarCapturePreview.innerHTML = "";
+  }
+
+  function renderCapturePreview(capture) {
+    const displayUrl = capture.url ? capture.url.replace(/^https?:\/\//i, "") : "";
+    const rows = [
+      ["Title", capture.title],
+      ["Price", capture.price],
+      ["Location", capture.location],
+      ["Seller", capture.sellerName],
+      ["URL", displayUrl],
+    ].filter(([, value]) => value);
+
+    if (!rows.length) {
+      clearCapturePreview();
+      return;
+    }
+
+    els.savedCarCapturePreview.hidden = false;
+    els.savedCarCapturePreview.innerHTML = `
+      <div class="capture-preview__title">Captured:</div>
+      ${rows
+        .map(([label, value]) => `<div class="capture-preview__row"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`)
+        .join("")}
+    `;
   }
 
   function clearSavedCarError() {
@@ -234,6 +264,10 @@
       }
 
       if (/^(ref|referral_code|referral_story_type|tracking)=/i.test(line)) {
+        return false;
+      }
+
+      if (/^\[InternetShortcut\]$/i.test(line) || /^URL=/i.test(line)) {
         return false;
       }
 
@@ -565,11 +599,13 @@
     const result = parseSavedCarCapture(els.savedCarCapture.value);
     if (result.error) {
       setCaptureMessage(result.error, "error");
+      clearCapturePreview();
       return;
     }
 
     prefillSavedCarFormFromCapture(result.value);
     clearSavedCarError();
+    renderCapturePreview(result.value);
 
     const summaryParts = [result.value.title, result.value.price, result.value.location, result.value.url ? "URL found" : ""].filter(Boolean);
     setCaptureMessage(
@@ -582,16 +618,81 @@
     els.savedCarCaptureBox.classList.toggle("is-drag-over", isActive);
   }
 
-  function handleSavedCarCaptureDrop(event) {
+  function getDroppedHtmlUrl(html) {
+    if (!html) {
+      return "";
+    }
+
+    const hrefMatch = html.match(/\shref=["']([^"']+)["']/i);
+    return hrefMatch ? hrefMatch[1] : "";
+  }
+
+  function getDroppedText(dataTransfer) {
+    if (!dataTransfer || typeof dataTransfer.getData !== "function") {
+      return "";
+    }
+
+    return (
+      dataTransfer.getData("text/plain") ||
+      dataTransfer.getData("text/uri-list") ||
+      getDroppedHtmlUrl(dataTransfer.getData("text/html"))
+    );
+  }
+
+  function readDroppedFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        resolve("");
+        return;
+      }
+
+      if (typeof file.text === "function") {
+        file.text().then(resolve).catch(reject);
+        return;
+      }
+
+      if (typeof window.FileReader !== "function") {
+        reject(new Error("File reading is not available in this browser."));
+        return;
+      }
+
+      const reader = new window.FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Dropped file could not be read."));
+      reader.readAsText(file);
+    });
+  }
+
+  async function getDroppedCaptureText(dataTransfer) {
+    const droppedText = getDroppedText(dataTransfer);
+    if (droppedText) {
+      return droppedText;
+    }
+
+    const file = dataTransfer && dataTransfer.files && dataTransfer.files[0];
+    if (!file) {
+      return "";
+    }
+
+    return readDroppedFile(file);
+  }
+
+  async function handleSavedCarCaptureDrop(event) {
     event.preventDefault();
     setCaptureDragState(false);
 
-    const droppedText = event.dataTransfer && typeof event.dataTransfer.getData === "function"
-      ? event.dataTransfer.getData("text/plain") || event.dataTransfer.getData("text/uri-list")
-      : "";
+    let droppedText = "";
+    try {
+      droppedText = await getDroppedCaptureText(event.dataTransfer);
+    } catch (error) {
+      setCaptureMessage(error.message || "Dropped file could not be read.", "error");
+      clearCapturePreview();
+      return;
+    }
 
     if (!droppedText) {
-      setCaptureMessage("Drop text or a listing URL into Smart Capture to use it.", "error");
+      setCaptureMessage("Drop text, a listing URL, or a readable .url shortcut into Smart Capture.", "error");
+      clearCapturePreview();
       return;
     }
 
@@ -657,18 +758,22 @@
 
     els.savedCarsToggle.addEventListener("click", toggleSavedCarsPanel);
     els.savedCarCaptureUse.addEventListener("click", handleSavedCarCaptureUse);
-    els.savedCarCapture.addEventListener("dragenter", (event) => {
-      event.preventDefault();
-      setCaptureDragState(true);
+    [els.savedCarCaptureBox, els.savedCarCapture].forEach((dropTarget) => {
+      dropTarget.addEventListener("dragenter", (event) => {
+        event.preventDefault();
+        setCaptureDragState(true);
+      });
+      dropTarget.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        setCaptureDragState(true);
+      });
+      dropTarget.addEventListener("dragleave", (event) => {
+        if (!els.savedCarCaptureBox.contains(event.relatedTarget)) {
+          setCaptureDragState(false);
+        }
+      });
+      dropTarget.addEventListener("drop", handleSavedCarCaptureDrop);
     });
-    els.savedCarCapture.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      setCaptureDragState(true);
-    });
-    els.savedCarCapture.addEventListener("dragleave", () => {
-      setCaptureDragState(false);
-    });
-    els.savedCarCapture.addEventListener("drop", handleSavedCarCaptureDrop);
     els.savedCarForm.addEventListener("submit", handleSavedCarSubmit);
     els.savedCarCancel.addEventListener("click", resetSavedCarForm);
     els.savedCarsList.addEventListener("click", handleSavedCarsListClick);

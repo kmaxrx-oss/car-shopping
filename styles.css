@@ -529,6 +529,30 @@ textarea {
   color: var(--brand);
 }
 
+.capture-preview {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(32, 90, 74, 0.09);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.capture-preview[hidden] {
+  display: none;
+}
+
+.capture-preview__title {
+  color: var(--brand-strong);
+  font-weight: 800;
+}
+
+.capture-preview__row {
+  overflow-wrap: anywhere;
+}
+
 .storage-warning {
   padding: 10px 12px;
   border-radius: var(--radius-md);
