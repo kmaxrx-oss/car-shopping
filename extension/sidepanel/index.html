@@ -67,6 +67,19 @@
 
       <section class="panel-section" aria-labelledby="saved-title">
         <h2 id="saved-title">Saved Cars</h2>
+
+        <div id="listing-capture-box" class="listing-capture-box">
+          <label class="field">
+            <span>Drop or paste listing text/URL</span>
+            <textarea id="listing-capture" class="listing-capture-textarea" rows="4" placeholder="Paste a Facebook Marketplace listing text block or URL here..."></textarea>
+          </label>
+          <div class="capture-actions">
+            <button id="use-capture-button" class="secondary-button" type="button">Use Capture</button>
+            <button id="clear-capture-button" class="secondary-button" type="button">Clear</button>
+          </div>
+          <p id="capture-status-line" class="status-line" role="status"></p>
+        </div>
+
         <form id="saved-car-form" class="saved-car-form" novalidate>
           <input id="saved-car-id" type="hidden" />
           <button id="save-current-tab-button" class="secondary-button" type="button">Save current tab</button>
@@ -124,6 +137,7 @@
     <script src="../shared/platforms.js"></script>
     <script src="../shared/storage.js"></script>
     <script src="../shared/saved-cars.js"></script>
+    <script src="../shared/capture-parser.js"></script>
     <script src="sidepanel.js"></script>
   </body>
 </html>

@@ -1,6 +1,7 @@
 (function initializeSidepanel() {
   const platforms = globalThis.CarSearchHarnessPlatforms;
   const savedCars = globalThis.CarSearchHarnessSavedCars;
+  const captureParser = globalThis.CarSearchHarnessCaptureParser;
   const storage = globalThis.CarSearchHarnessStorage;
   const tabs = document.getElementById("platform-tabs");
   const resultBox = document.getElementById("platform-result");
@@ -11,6 +12,11 @@
   const savedCarStatusLine = document.getElementById("saved-car-status-line");
   const cancelEditButton = document.getElementById("cancel-edit-button");
   const saveCurrentTabButton = document.getElementById("save-current-tab-button");
+  const listingCaptureBox = document.getElementById("listing-capture-box");
+  const listingCaptureTextarea = document.getElementById("listing-capture");
+  const useCaptureButton = document.getElementById("use-capture-button");
+  const clearCaptureButton = document.getElementById("clear-capture-button");
+  const captureStatusLine = document.getElementById("capture-status-line");
   const savedCarFields = {
     id: document.getElementById("saved-car-id"),
     title: document.getElementById("saved-car-title"),
@@ -98,6 +104,108 @@
 
   function setSavedCarStatus(message) {
     savedCarStatusLine.textContent = message;
+  }
+
+  function setCaptureStatus(message) {
+    captureStatusLine.textContent = message;
+  }
+
+  function setCaptureDragState(active) {
+    listingCaptureBox.classList.toggle("is-drag-over", active);
+  }
+
+  function getDroppedHtmlUrl(html) {
+    if (!html) {
+      return "";
+    }
+    const hrefMatch = html.match(/\shref=["']([^"']+)["']/i);
+    return hrefMatch ? hrefMatch[1] : "";
+  }
+
+  function getDroppedText(dataTransfer) {
+    if (!dataTransfer || typeof dataTransfer.getData !== "function") {
+      return "";
+    }
+    return (
+      dataTransfer.getData("text/plain") ||
+      dataTransfer.getData("text/uri-list") ||
+      getDroppedHtmlUrl(dataTransfer.getData("text/html"))
+    );
+  }
+
+  async function handleCaptureUse() {
+    useCaptureButton.disabled = true;
+    const rawText = listingCaptureTextarea.value;
+
+    const result = captureParser.parseSavedCarCapture(rawText);
+    if (result.error) {
+      setCaptureStatus(result.error);
+      useCaptureButton.disabled = false;
+      return;
+    }
+
+    const capture = result.value;
+
+    if (!capture.url) {
+      setCaptureStatus("Capture needs a listing URL. Add the Facebook Marketplace URL to the text.");
+      useCaptureButton.disabled = false;
+      return;
+    }
+
+    const isUrlOnly = captureParser.isUrlOnlyCapture(rawText, capture);
+    const title = capture.title || capture.url;
+
+    if (findSavedCarByUrl(capture.url)) {
+      setCaptureStatus("Already saved.");
+      useCaptureButton.disabled = false;
+      return;
+    }
+
+    try {
+      const carResult = savedCars.createSavedCar({
+        title,
+        url: capture.url,
+        price: capture.price || "",
+        location: capture.location || "",
+        sellerName: capture.sellerName || "",
+        mileage: capture.mileage || "",
+        transmission: capture.transmission || "",
+        fuelType: capture.fuelType || "",
+        status: "Interested",
+        sourceText: capture.sourceText,
+      });
+
+      if (carResult.error) {
+        setCaptureStatus(carResult.error);
+        return;
+      }
+
+      savedCarRecords = [carResult.value, ...savedCarRecords];
+      await persistSavedCars(
+        isUrlOnly ? `Saved URL only: ${carResult.value.title}.` : `Saved: ${carResult.value.title}.`
+      );
+      listingCaptureTextarea.value = "";
+      setCaptureStatus("");
+    } catch (error) {
+      setCaptureStatus(error.message || "Capture could not be saved.");
+    } finally {
+      useCaptureButton.disabled = false;
+    }
+  }
+
+  async function handleCaptureDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setCaptureDragState(false);
+
+    const droppedText = getDroppedText(event.dataTransfer);
+    if (!droppedText) {
+      setCaptureStatus("Drop text or a listing URL into the capture box.");
+      return;
+    }
+
+    listingCaptureTextarea.value = droppedText.trim();
+    await handleCaptureUse();
   }
 
   function formatTimestamp(value) {
@@ -464,6 +572,30 @@
   });
 
   saveCurrentTabButton.addEventListener("click", saveCurrentTab);
+
+  useCaptureButton.addEventListener("click", handleCaptureUse);
+
+  clearCaptureButton.addEventListener("click", () => {
+    listingCaptureTextarea.value = "";
+    setCaptureStatus("");
+  });
+
+  [listingCaptureBox, listingCaptureTextarea].forEach((dropTarget) => {
+    dropTarget.addEventListener("dragenter", (event) => {
+      event.preventDefault();
+      setCaptureDragState(true);
+    });
+    dropTarget.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      setCaptureDragState(true);
+    });
+    dropTarget.addEventListener("dragleave", (event) => {
+      if (!listingCaptureBox.contains(event.relatedTarget)) {
+        setCaptureDragState(false);
+      }
+    });
+    dropTarget.addEventListener("drop", handleCaptureDrop);
+  });
 
   savedCarList.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-action]");

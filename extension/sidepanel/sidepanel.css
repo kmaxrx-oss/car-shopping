@@ -308,3 +308,35 @@ textarea {
 .saved-car-card__actions button.is-danger {
   color: #9b2f26;
 }
+
+.listing-capture-box {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 10px;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.listing-capture-box.is-drag-over {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.listing-capture-textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 9px 10px;
+  resize: vertical;
+}
+
+.capture-actions {
+  display: flex;
+  gap: 8px;
+}
