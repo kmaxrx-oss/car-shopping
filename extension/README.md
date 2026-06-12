@@ -44,6 +44,23 @@ Each platform entry in `shared/platforms.js` includes:
 
 Facebook is the default platform and has the only real URL builder in this scaffold. Cars.com, eBay, Craigslist, and Autotrader return explicit `not_implemented` results until each platform URL contract is verified.
 
+## First browser-tab action
+
+The side panel now has active search controls for:
+
+- query/model text
+- min price
+- max price
+- min year
+- radius
+- days listed
+- exact match
+- active ZIP placeholder
+
+The active ZIP field is present for the extension path, but Facebook still uses the static app's fixed Marketplace location id in the mirrored URL builder. Clicking `Search Facebook` sends an `OPEN_SEARCH_TAB` message to the extension service worker. The service worker validates that the URL is a Facebook Marketplace URL, then opens a Facebook Marketplace tab.
+
+Tab reuse is best-effort in this tranche. The service worker keeps the Facebook tab id it created and updates that tab on the next search while the id is available. If the tab is closed or the worker has lost that in-memory id, it opens a new tab. Durable tab tracking is intentionally deferred.
+
 ## Saved cars preservation
 
 The current saved-car data shape remains the compatibility target:

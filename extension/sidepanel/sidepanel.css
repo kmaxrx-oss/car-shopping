@@ -121,13 +121,51 @@ input {
   padding: 6px 9px;
 }
 
-.placeholder-grid {
+.controls-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.placeholder-grid span,
+.toggle-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.toggle-field input {
+  width: auto;
+}
+
+.search-button {
+  width: 100%;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
+.search-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.status-line {
+  min-height: 1.1rem;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .placeholder-text,
 .result-box {
   border: 1px dashed var(--line);

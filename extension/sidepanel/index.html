@@ -31,12 +31,38 @@
 
       <section class="panel-section" aria-labelledby="controls-title">
         <h2 id="controls-title">Search Controls</h2>
-        <div class="placeholder-grid">
-          <span>Query</span>
-          <span>Price</span>
-          <span>Radius</span>
-          <span>Min year</span>
+        <div class="controls-grid">
+          <label class="field">
+            <span>Query / model</span>
+            <input id="search-query" type="text" autocomplete="off" value="hybrid" />
+          </label>
+          <label class="field">
+            <span>Min price</span>
+            <input id="min-price" type="number" min="0" step="50" value="1500" />
+          </label>
+          <label class="field">
+            <span>Max price</span>
+            <input id="max-price" type="number" min="0" step="50" value="4000" />
+          </label>
+          <label class="field">
+            <span>Min year</span>
+            <input id="min-year" type="number" min="1900" step="1" value="2013" />
+          </label>
+          <label class="field">
+            <span>Radius</span>
+            <input id="radius" type="number" min="1" step="1" value="100" />
+          </label>
+          <label class="field">
+            <span>Days listed</span>
+            <input id="days-listed" type="number" min="1" step="1" value="7" />
+          </label>
+          <label class="toggle-field">
+            <input id="exact-match" type="checkbox" checked />
+            <span>Exact match</span>
+          </label>
         </div>
+        <button id="search-button" class="search-button" type="button">Search Facebook</button>
+        <p id="search-status" class="status-line" role="status"></p>
       </section>
 
       <section class="panel-section" aria-labelledby="saved-title">
