@@ -36,11 +36,36 @@
       uniqueLines.find((line) => /^(?:driven\s+)?[\d,]+\s*(?:miles?|mi)\b/i.test(line)) || "";
 
     let sellerName = "";
+    let sellerSectionNameLine = "";
+
     for (const line of uniqueLines) {
       const sellerMatch = line.match(/^(?:seller|listed by|posted by)\s*:\s*(.+)$/i);
       if (sellerMatch && sellerMatch[1].trim()) {
         sellerName = sellerMatch[1].trim();
         break;
+      }
+    }
+
+    if (!sellerName) {
+      const sellerInfoIdx = uniqueLines.findIndex((line) => /^seller information$/i.test(line));
+      if (sellerInfoIdx !== -1) {
+        for (let i = sellerInfoIdx + 1; i < uniqueLines.length; i++) {
+          const candidate = uniqueLines[i];
+          if (
+            candidate &&
+            !candidate.match(/^https?:\/\//i) &&
+            candidate !== price &&
+            candidate !== location &&
+            candidate !== mileageLine &&
+            !/^[\d⭐*]/.test(candidate) &&
+            !/^member since/i.test(candidate) &&
+            !/^(facebook|marketplace)$/i.test(candidate)
+          ) {
+            sellerName = candidate;
+            sellerSectionNameLine = candidate;
+            break;
+          }
+        }
       }
     }
 
@@ -57,7 +82,16 @@
       if (mileageLine && line === mileageLine) {
         return false;
       }
+      if (/^seller information$/i.test(line)) {
+        return false;
+      }
+      if (sellerSectionNameLine && line === sellerSectionNameLine) {
+        return false;
+      }
       if (/^(seller|listed by|posted by)\s*:/i.test(line)) {
+        return false;
+      }
+      if (/^member since\b/i.test(line)) {
         return false;
       }
       if (/^(ref|referral_code|referral_story_type|tracking)=/i.test(line)) {
