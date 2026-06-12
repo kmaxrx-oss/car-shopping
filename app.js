@@ -3,6 +3,8 @@
   const tierById = new Map(vehicles.map((tier) => [tier.id, tier]));
   const savedCarsStorageKey = "carShopping.savedCars.v1";
   const savedCarStatuses = ["Interested", "Messaged", "Maybe", "Rejected", "Gone / Removed", "Bought / Dead end"];
+  const listingReaderEndpoint = "http://localhost:3137/read-listing";
+  const listingReaderTimeoutMs = 10000;
 
   const state = {
     tierId: vehicles[1] ? vehicles[1].id : vehicles[0]?.id || "tier-b",
@@ -42,6 +44,13 @@
     savedCarForm: document.getElementById("saved-car-form"),
     savedCarId: document.getElementById("saved-car-id"),
     savedCarSourceText: document.getElementById("saved-car-source-text"),
+    savedCarMileage: document.getElementById("saved-car-mileage"),
+    savedCarTransmission: document.getElementById("saved-car-transmission"),
+    savedCarFuelType: document.getElementById("saved-car-fuel-type"),
+    savedCarDescription: document.getElementById("saved-car-description"),
+    savedCarImageUrl: document.getElementById("saved-car-image-url"),
+    savedCarReadStatus: document.getElementById("saved-car-read-status"),
+    savedCarStatusHint: document.getElementById("saved-car-status-hint"),
     savedCarTitle: document.getElementById("saved-car-title"),
     savedCarUrl: document.getElementById("saved-car-url"),
     savedCarPrice: document.getElementById("saved-car-price"),
@@ -107,6 +116,11 @@
       ["Price", capture.price],
       ["Location", capture.location],
       ["Seller", capture.sellerName],
+      ["Mileage", capture.mileage],
+      ["Transmission", capture.transmission],
+      ["Fuel", capture.fuelType],
+      ["Reader", capture.readStatus],
+      ["Status hint", capture.statusHint],
       ["URL", displayUrl],
     ].filter(([, value]) => value);
 
@@ -151,6 +165,13 @@
       price: typeof candidate.price === "string" ? candidate.price : "",
       location: typeof candidate.location === "string" ? candidate.location : "",
       sellerName: typeof candidate.sellerName === "string" ? candidate.sellerName : "",
+      mileage: typeof candidate.mileage === "string" ? candidate.mileage : "",
+      transmission: typeof candidate.transmission === "string" ? candidate.transmission : "",
+      fuelType: typeof candidate.fuelType === "string" ? candidate.fuelType : "",
+      description: typeof candidate.description === "string" ? candidate.description : "",
+      imageUrl: typeof candidate.imageUrl === "string" ? candidate.imageUrl : "",
+      readStatus: typeof candidate.readStatus === "string" ? candidate.readStatus : "",
+      statusHint: typeof candidate.statusHint === "string" ? candidate.statusHint : "",
       status: savedCarStatuses.includes(candidate.status) ? candidate.status : "Interested",
       notes: typeof candidate.notes === "string" ? candidate.notes : "",
       sourceText: typeof candidate.sourceText === "string" ? candidate.sourceText : "",
@@ -291,9 +312,85 @@
         location,
         title,
         sellerName,
+        mileage: "",
+        transmission: "",
+        fuelType: "",
+        description: "",
+        imageUrl: "",
+        readStatus: "",
+        statusHint: "",
         sourceText,
       },
     };
+  }
+
+  function isUrlOnlyCapture(rawText, capture) {
+    if (!capture.url) {
+      return false;
+    }
+
+    const textWithoutUrl = String(rawText || "")
+      .replace(capture.url, "")
+      .replace(/^\s*\[InternetShortcut\]\s*$/gim, "")
+      .replace(/^\s*URL=\s*$/gim, "")
+      .replace(/^\s*URL=/gim, "")
+      .trim();
+
+    return !capture.title && !capture.price && !capture.location && !capture.sellerName && !textWithoutUrl;
+  }
+
+  function normalizeReaderResponse(response, fallbackUrl, sourceText) {
+    return {
+      title: typeof response.title === "string" ? response.title.trim() : "",
+      url: fallbackUrl,
+      price: typeof response.price === "string" ? response.price.trim() : "",
+      location: typeof response.location === "string" ? response.location.trim() : "",
+      sellerName: typeof response.sellerName === "string" ? response.sellerName.trim() : "",
+      mileage: typeof response.mileage === "string" ? response.mileage.trim() : "",
+      transmission: typeof response.transmission === "string" ? response.transmission.trim() : "",
+      fuelType: typeof response.fuelType === "string" ? response.fuelType.trim() : "",
+      description: typeof response.description === "string" ? response.description.trim() : "",
+      imageUrl: typeof response.imageUrl === "string" ? response.imageUrl.trim() : "",
+      readStatus: typeof response.readStatus === "string" ? response.readStatus : "",
+      statusHint: typeof response.statusHint === "string" ? response.statusHint : "",
+      sourceText: typeof response.rawText === "string" && response.rawText ? response.rawText : sourceText,
+    };
+  }
+
+  async function readListingFromLocalReader(url) {
+    if (typeof window.fetch !== "function") {
+      return { readStatus: "reader_unavailable", error: "Local reader requires browser fetch support." };
+    }
+
+    const controller = typeof window.AbortController === "function" ? new window.AbortController() : null;
+    const timeoutId = controller
+      ? window.setTimeout(() => controller.abort(), listingReaderTimeoutMs)
+      : null;
+
+    try {
+      const response = await window.fetch(listingReaderEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+        signal: controller ? controller.signal : undefined,
+      });
+
+      if (!response.ok) {
+        return { readStatus: "reader_unavailable", error: `Reader returned HTTP ${response.status}.` };
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        return { readStatus: "timeout", error: "Reader timed out." };
+      }
+
+      return { readStatus: "reader_unavailable", error: "Reader unavailable." };
+    } finally {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    }
   }
 
   function getActiveTier() {
@@ -425,6 +522,13 @@
   function resetSavedCarForm() {
     els.savedCarId.value = "";
     els.savedCarSourceText.value = "";
+    els.savedCarMileage.value = "";
+    els.savedCarTransmission.value = "";
+    els.savedCarFuelType.value = "";
+    els.savedCarDescription.value = "";
+    els.savedCarImageUrl.value = "";
+    els.savedCarReadStatus.value = "";
+    els.savedCarStatusHint.value = "";
     els.savedCarTitle.value = "";
     els.savedCarUrl.value = "";
     els.savedCarPrice.value = "";
@@ -443,6 +547,13 @@
     const price = els.savedCarPrice.value.trim();
     const location = els.savedCarLocation.value.trim();
     const sellerName = els.savedCarSellerName.value.trim();
+    const mileage = els.savedCarMileage.value.trim();
+    const transmission = els.savedCarTransmission.value.trim();
+    const fuelType = els.savedCarFuelType.value.trim();
+    const description = els.savedCarDescription.value.trim();
+    const imageUrl = els.savedCarImageUrl.value.trim();
+    const readStatus = els.savedCarReadStatus.value.trim();
+    const statusHint = els.savedCarStatusHint.value.trim();
     const status = savedCarStatuses.includes(els.savedCarStatus.value) ? els.savedCarStatus.value : "Interested";
     const notes = els.savedCarNotes.value.trim();
     const sourceText = els.savedCarSourceText.value;
@@ -464,7 +575,7 @@
       return { error: "Listing URL must be a valid http or https URL." };
     }
 
-    return { value: { title, url, price, location, sellerName, status, notes, sourceText } };
+    return { value: { title, url, price, location, sellerName, mileage, transmission, fuelType, description, imageUrl, readStatus, statusHint, status, notes, sourceText } };
   }
 
   function renderSavedCars() {
@@ -480,7 +591,7 @@
         const savedAt = formatTimestamp(car.createdAt);
         const updatedAt = formatTimestamp(car.updatedAt);
         const timestamp = updatedAt && updatedAt !== savedAt ? `Updated ${updatedAt}` : savedAt ? `Saved ${savedAt}` : "";
-        const facts = [car.price, car.location, car.sellerName]
+        const facts = [car.price, car.location, car.sellerName, car.mileage, car.transmission, car.fuelType, car.statusHint]
           .filter(Boolean)
           .map((fact) => `<span class="saved-car-card__fact">${escapeHtml(fact)}</span>`)
           .join("");
@@ -521,6 +632,13 @@
       existingCar.price = result.value.price;
       existingCar.location = result.value.location;
       existingCar.sellerName = result.value.sellerName;
+      existingCar.mileage = result.value.mileage;
+      existingCar.transmission = result.value.transmission;
+      existingCar.fuelType = result.value.fuelType;
+      existingCar.description = result.value.description;
+      existingCar.imageUrl = result.value.imageUrl;
+      existingCar.readStatus = result.value.readStatus;
+      existingCar.statusHint = result.value.statusHint;
       existingCar.status = result.value.status;
       existingCar.notes = result.value.notes;
       existingCar.sourceText = result.value.sourceText;
@@ -533,6 +651,13 @@
         price: result.value.price,
         location: result.value.location,
         sellerName: result.value.sellerName,
+        mileage: result.value.mileage,
+        transmission: result.value.transmission,
+        fuelType: result.value.fuelType,
+        description: result.value.description,
+        imageUrl: result.value.imageUrl,
+        readStatus: result.value.readStatus,
+        statusHint: result.value.statusHint,
         status: result.value.status,
         notes: result.value.notes,
         sourceText: result.value.sourceText,
@@ -554,6 +679,13 @@
 
     els.savedCarId.value = car.id;
     els.savedCarSourceText.value = car.sourceText || "";
+    els.savedCarMileage.value = car.mileage || "";
+    els.savedCarTransmission.value = car.transmission || "";
+    els.savedCarFuelType.value = car.fuelType || "";
+    els.savedCarDescription.value = car.description || "";
+    els.savedCarImageUrl.value = car.imageUrl || "";
+    els.savedCarReadStatus.value = car.readStatus || "";
+    els.savedCarStatusHint.value = car.statusHint || "";
     els.savedCarTitle.value = car.title;
     els.savedCarUrl.value = car.url;
     els.savedCarPrice.value = car.price || "";
@@ -586,20 +718,66 @@
     }
   }
 
-  function prefillSavedCarFormFromCapture(capture) {
+  function prefillSavedCarFormFromCapture(capture, options = {}) {
+    const preserveMissing = Boolean(options.preserveMissing);
     els.savedCarSourceText.value = capture.sourceText || "";
-    els.savedCarTitle.value = capture.title || "";
-    els.savedCarUrl.value = capture.url || "";
-    els.savedCarPrice.value = capture.price || "";
-    els.savedCarLocation.value = capture.location || "";
-    els.savedCarSellerName.value = capture.sellerName || "";
+    els.savedCarUrl.value = capture.url || els.savedCarUrl.value;
+
+    const fieldPairs = [
+      [els.savedCarTitle, capture.title],
+      [els.savedCarPrice, capture.price],
+      [els.savedCarLocation, capture.location],
+      [els.savedCarSellerName, capture.sellerName],
+      [els.savedCarMileage, capture.mileage],
+      [els.savedCarTransmission, capture.transmission],
+      [els.savedCarFuelType, capture.fuelType],
+      [els.savedCarDescription, capture.description],
+      [els.savedCarImageUrl, capture.imageUrl],
+      [els.savedCarReadStatus, capture.readStatus],
+      [els.savedCarStatusHint, capture.statusHint],
+    ];
+
+    fieldPairs.forEach(([field, value]) => {
+      if (value || !preserveMissing) {
+        field.value = value || "";
+      }
+    });
+
+    if (capture.statusHint && savedCarStatuses.includes(capture.statusHint)) {
+      els.savedCarStatus.value = capture.statusHint;
+    }
   }
 
-  function handleSavedCarCaptureUse() {
+  async function handleSavedCarCaptureUse() {
     const result = parseSavedCarCapture(els.savedCarCapture.value);
     if (result.error) {
       setCaptureMessage(result.error, "error");
       clearCapturePreview();
+      return;
+    }
+
+    if (isUrlOnlyCapture(els.savedCarCapture.value, result.value)) {
+      prefillSavedCarFormFromCapture(result.value, { preserveMissing: true });
+      clearSavedCarError();
+      renderCapturePreview(result.value);
+      setCaptureMessage("Reading listing from local reader...", "success");
+
+      const readerResponse = await readListingFromLocalReader(result.value.url);
+      if (readerResponse.readStatus === "ok") {
+        const readerCapture = normalizeReaderResponse(readerResponse, result.value.url, result.value.sourceText);
+        prefillSavedCarFormFromCapture(readerCapture);
+        renderCapturePreview(readerCapture);
+        setCaptureMessage("Listing read successfully.", "success");
+        return;
+      }
+
+      const statusMessage = readerResponse.readStatus === "timeout"
+        ? "Reader timeout. URL captured only. Paste listing text to fill details."
+        : readerResponse.readStatus === "could_not_parse"
+          ? "Reader could not parse listing. URL captured only. Paste listing text to fill details."
+          : "Reader unavailable. URL captured only. Paste listing text to fill details.";
+      setCaptureMessage(statusMessage, "error");
+      renderCapturePreview(result.value);
       return;
     }
 

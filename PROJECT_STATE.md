@@ -2,7 +2,7 @@
 
 ## Current goal
 
-Create a local, static car-search homebase that preserves the vehicle tier and model context, generates clickable Facebook Marketplace search URLs, provides a manual Saved Cars shortlist, and supports local Smart Capture from pasted listing text.
+Create a local car-search homebase that preserves the vehicle tier and model context, generates clickable Facebook Marketplace search URLs, provides a manual Saved Cars shortlist, supports local Smart Capture from pasted listing text, and can optionally use a local listing-reader companion service for URL-only capture.
 
 ## Current tier logic
 
@@ -36,13 +36,34 @@ Stored object shape:
 - `price`
 - `location`
 - `sellerName`
+- `mileage`
+- `transmission`
+- `fuelType`
+- `description`
+- `imageUrl`
+- `readStatus`
+- `statusHint`
 - `status`
 - `notes`
 - `sourceText`
 - `createdAt`
 - `updatedAt`
 
-This is browser-local `localStorage` only. Saved listing URLs are opened manually by the user, and Smart Capture only parses user-provided pasted or dropped text. The app does not fetch or inspect Facebook.
+This is browser-local `localStorage` only. Saved listing URLs are opened manually by the user, and Smart Capture parses user-provided pasted or dropped text.
+
+## Optional listing reader
+
+The first local reader prototype lives under:
+
+`tools/listing-reader/`
+
+Endpoint:
+
+`POST http://localhost:3137/read-listing`
+
+The main static app remains usable when the reader is not running. For URL-only capture, the app tries the reader with a timeout, then falls back to URL-only capture with a visible message.
+
+The reader is local-only, user-triggered, and does not store credentials, tokens, passwords, or cookies in this repo.
 
 ## Ordering heuristic
 
@@ -62,7 +83,11 @@ The app does not turn that heuristic into a scoring engine. It is only used to o
 - Database
 - Authentication
 - Facebook automation
+- Credential storage
 - Listing ingestion
+- Background scraping loops
+- Bulk crawling
+- Scheduled checking
 - Price analysis
 - Ranking/scoring algorithm
 - Sold/removed listing detection

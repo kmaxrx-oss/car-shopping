@@ -1,0 +1,14 @@
+{
+  "name": "car-shopping-listing-reader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Optional local reader service for Car Search Homebase.",
+  "scripts": {
+    "start": "node server.js",
+    "mock": "set LISTING_READER_MOCK=1&& node server.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
