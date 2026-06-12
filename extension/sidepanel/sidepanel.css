@@ -1,0 +1,145 @@
+:root {
+  color-scheme: light;
+  --ink: #211c16;
+  --muted: #6f665a;
+  --panel: #fffdf8;
+  --line: rgba(33, 28, 22, 0.14);
+  --brand: #205a4a;
+  --brand-soft: #d8eee6;
+  --paper: #f8f3ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Aptos", "Segoe UI", sans-serif;
+}
+
+.harness-shell {
+  display: grid;
+  gap: 12px;
+  min-height: 100vh;
+  padding: 14px;
+}
+
+.harness-header,
+.panel-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px;
+}
+
+.harness-header {
+  display: grid;
+  gap: 4px;
+}
+
+.eyebrow,
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+h2 {
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+}
+
+.platform-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.platform-tab {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 7px 10px;
+}
+
+.platform-tab[aria-selected="true"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  font: inherit;
+  padding: 9px 10px;
+}
+
+.chip-row {
+  display: flex;
+  margin-top: 8px;
+}
+
+.chip {
+  border-radius: 999px;
+  background: rgba(33, 28, 22, 0.08);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 9px;
+}
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.placeholder-grid span,
+.placeholder-text,
+.result-box {
+  border: 1px dashed var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
+  font-size: 0.82rem;
+  padding: 9px;
+}
+
+.result-box {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Car Search Harness",
+  "description": "Side-panel scaffold for a cross-platform car search controller.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "114",
+  "action": {
+    "default_title": "Open Car Search Harness"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": [
+    "sidePanel"
+  ],
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  }
+}

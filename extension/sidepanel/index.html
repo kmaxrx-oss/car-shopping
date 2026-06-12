@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Car Search Harness</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <main class="harness-shell">
+      <header class="harness-header">
+        <p class="eyebrow">Extension scaffold</p>
+        <h1>Car Search Harness</h1>
+      </header>
+
+      <section class="panel-section" aria-labelledby="platforms-title">
+        <h2 id="platforms-title">Platform</h2>
+        <div id="platform-tabs" class="platform-tabs" role="tablist" aria-label="Search platforms"></div>
+      </section>
+
+      <section class="panel-section" aria-labelledby="zip-title">
+        <h2 id="zip-title">ZIP</h2>
+        <label class="field">
+          <span>Active ZIP</span>
+          <input id="active-zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="Add ZIP later" />
+        </label>
+        <div class="chip-row" aria-label="Recent ZIPs">
+          <span class="chip is-muted">Recent ZIP placeholder</span>
+        </div>
+      </section>
+
+      <section class="panel-section" aria-labelledby="controls-title">
+        <h2 id="controls-title">Search Controls</h2>
+        <div class="placeholder-grid">
+          <span>Query</span>
+          <span>Price</span>
+          <span>Radius</span>
+          <span>Min year</span>
+        </div>
+      </section>
+
+      <section class="panel-section" aria-labelledby="saved-title">
+        <h2 id="saved-title">Saved Cars</h2>
+        <p id="saved-cars-placeholder" class="placeholder-text"></p>
+      </section>
+
+      <section class="panel-section" aria-labelledby="preview-title">
+        <h2 id="preview-title">Platform Result</h2>
+        <code id="platform-result" class="result-box"></code>
+      </section>
+    </main>
+
+    <script src="../shared/platforms.js"></script>
+    <script src="../shared/storage.js"></script>
+    <script src="../shared/saved-cars.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
