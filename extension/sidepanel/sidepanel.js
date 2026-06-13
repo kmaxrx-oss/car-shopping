@@ -356,8 +356,20 @@
     let message = `Saved: ${carResult.value.title}.`;
     if (options.enriched) {
       message = `Saved with reader details: ${carResult.value.title}.`;
-    } else if (options.readerAttempted && options.readerMessage) {
-      message = `Saved URL only. ${options.readerMessage}`;
+    } else if (options.readerAttempted) {
+      // Distinguish partial reader success (per tranche guidance)
+      const car = carResult.value;
+      const hasSomeReaderFields = Boolean(car.price || car.location || car.sellerName || car.mileage);
+      if (hasSomeReaderFields) {
+        const missing = ["price", "location", "sellerName", "mileage"].filter((f) => !car[f]).join(", ");
+        message = missing
+          ? `Reader found partial listing details — missing ${missing}.`
+          : `Saved with reader details: ${car.title}.`;
+      } else if (options.readerMessage) {
+        message = `Saved URL only. ${options.readerMessage}`;
+      } else {
+        message = `Saved URL only: ${car.title}.`;
+      }
     } else if (isUrlOnly) {
       message = `Saved URL only: ${carResult.value.title}.`;
     }
@@ -551,7 +563,11 @@
 
     const sourceType = getSavedCarSourceType(car);
     if (sourceType === "active_tab" || sourceType === "url_only") {
-      return `Saved URL only - missing ${missingFields.join(", ")}`;
+      // Use accurate partial language when the reader contributed data
+      const prefix = (car.readStatus === "partial" || car.readStatus === "ok")
+        ? "Reader found partial listing details"
+        : "Saved URL only";
+      return `${prefix} - missing ${missingFields.join(", ")}`;
     }
 
     if (!car.price && !car.location && !car.sellerName && !car.mileage) {

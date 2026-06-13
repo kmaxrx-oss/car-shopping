@@ -53,44 +53,117 @@ function hasUsefulFields(result) {
   );
 }
 
+function filterNoiseLines(rawLines) {
+  const noiseRegexes = [
+    /^facebook$/i,
+    /^marketplace$/i,
+    /^seller information$/i,
+    /^member since\b/i,
+    /^see more on facebook/i,
+    /\b(log in|login|sign in|sign up|create new account|forgot account)\b/i,
+    /^https?:\/\//i,
+    /^[\d⭐*]+$/,
+    /^\[InternetShortcut\]$/i,
+    /^URL=/i,
+    /^ref=|tracking=/i,
+  ];
+
+  const seen = new Set();
+  const cleaned = [];
+
+  for (const line of rawLines) {
+    const lower = line.toLowerCase();
+    if (seen.has(lower)) continue;
+    if (noiseRegexes.some((re) => re.test(line))) continue;
+    seen.add(lower);
+    cleaned.push(line);
+  }
+  return cleaned;
+}
+
 function extractFieldsFromText(rawText, hints = {}) {
-  const text = normalizeWhitespace(rawText);
-  const lines = String(rawText || "")
+  const rawLines = String(rawText || "")
     .split(/\r?\n/)
     .map((line) => normalizeWhitespace(line))
     .filter(Boolean);
 
+  // Seller detection must see the "Seller information" header and following name (port order from capture-parser)
+  let sellerName = "";
+  let sellerSectionNameLine = "";
+
+  for (const line of rawLines) {
+    const sellerMatch = line.match(/^(?:seller|listed by|posted by)\s*:\s*(.+)$/i);
+    if (sellerMatch && sellerMatch[1].trim()) {
+      sellerName = sellerMatch[1].trim();
+      break;
+    }
+  }
+
+  if (!sellerName) {
+    const sellerInfoIdx = rawLines.findIndex((line) => /^seller information$/i.test(line));
+    if (sellerInfoIdx !== -1) {
+      for (let i = sellerInfoIdx + 1; i < rawLines.length; i++) {
+        const candidate = rawLines[i];
+        if (
+          candidate &&
+          !candidate.match(/^https?:\/\//i) &&
+          !/^[\d⭐*]/.test(candidate) &&
+          !/^member since/i.test(candidate) &&
+          !/^(facebook|marketplace)$/i.test(candidate)
+        ) {
+          sellerName = candidate;
+          sellerSectionNameLine = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  const cleanedLines = filterNoiseLines(rawLines);
+  const text = normalizeWhitespace(rawText);
+  const cleanedText = cleanedLines.join("\n");
+
   const price = firstMatch(text, /\$\s?\d[\d,]*(?:\.\d{2})?/);
+
   const location =
     firstMatch(text, /Listed\s+\d+\s+\w+\s+ago\s+in\s+([A-Za-z .'-]+,\s*[A-Z]{2})/i) ||
+    firstMatch(text, /Listed in ([A-Za-z .'-]+,\s*[A-Z]{2})/i) ||
+    firstMatch(text, /Located in ([A-Za-z .'-]+,\s*[A-Z]{2})/i) ||
     firstMatch(text, /Location\s+([A-Za-z .'-]+,\s*[A-Z]{2})/i) ||
     firstMatch(text, /([A-Za-z .'-]+,\s*[A-Z]{2})/);
+
   const mileage =
     firstMatch(text, /Driven\s+(\d[\d,]*\s*miles?)/i) ||
     firstMatch(text, /(\d[\d,]*\s*Miles)/) ||
-    firstMatch(text, /(\d[\d,]*\s*mi\.?)/i);
+    firstMatch(text, /(\d[\d,]*\s*mi\.?)/i) ||
+    firstMatch(text, /(\d[\d,]*)\s*(?:miles?|mi)\b/i) ||
+    firstMatch(text, /mileage[:\s-]*(\d[\d,]*\s*(?:miles?|mi)?)/i);
+
   const transmission = firstMatch(text, /\b(automatic|manual|cvt|continuously variable)\b/i);
   const fuelType = firstMatch(text, /\b(gasoline|hybrid|electric|diesel|flex fuel|plug-in hybrid|phev)\b/i);
   const loginRequired = /\b(log in|login|sign in|sign up|create new account)\b/i.test(text);
   const unavailable = /\b(sold|no longer available|listing is no longer available|content isn't available|removed|this listing is no longer available)\b/i.test(text);
-  const title =
+
+  // Title selection using cleaned lines + exclusions (sellerName already extracted above from raw order)
+  let title =
     cleanTitle(hints.ogTitle || hints.pageTitle || "") ||
-    lines.find((line) => line !== price && line !== location && !/^facebook marketplace$/i.test(line)) ||
+    cleanedLines.find((line) =>
+      line !== price &&
+      line !== location &&
+      line !== sellerName &&
+      line !== (mileage || "") &&
+      !/^facebook marketplace$/i.test(line)
+    ) ||
     "";
+
   const description = normalizeWhitespace(hints.ogDescription || "");
 
-  return {
+  const parsed = {
     ...emptyResult,
-    readStatus: loginRequired && !title && !price
-      ? "login_required"
-      : unavailable
-        ? "unavailable"
-        : title || price || location || mileage || description
-          ? "ok"
-          : "could_not_parse",
-    title,
+    title: normalizeWhitespace(title),
     price,
     location,
+    sellerName,
     mileage,
     transmission,
     fuelType,
@@ -100,6 +173,24 @@ function extractFieldsFromText(rawText, hints = {}) {
     unavailable,
     rawText: excerpt(rawText),
   };
+
+  // Improved status: support "partial" when reader got useful data but not full core
+  const hasCore = Boolean(parsed.title && parsed.price && parsed.location);
+  const hasUseful = hasUsefulFields(parsed);
+
+  if (loginRequired && !parsed.title && !parsed.price) {
+    parsed.readStatus = "login_required";
+  } else if (unavailable) {
+    parsed.readStatus = "unavailable";
+  } else if (hasCore) {
+    parsed.readStatus = "ok";
+  } else if (hasUseful) {
+    parsed.readStatus = "partial";
+  } else {
+    parsed.readStatus = "could_not_parse";
+  }
+
+  return parsed;
 }
 
 async function getFacebookDialogState(page) {
@@ -230,16 +321,18 @@ function chooseReadStatus(parsed, modalState, rawText) {
 
   const hasFields = hasUsefulFields(parsed);
   const hasCoreListingFields = Boolean(parsed.title && parsed.price && parsed.location);
+
   if (hasCoreListingFields) {
     return "ok";
   }
 
   if (modalState.modalDetected && modalState.closed && hasFields) {
-    return "login_dialog_closed";
+    // Prefer partial when we have some but not full core after dialog close
+    return hasCoreListingFields ? "ok" : "partial";
   }
 
   if (hasFields) {
-    return "ok";
+    return hasCoreListingFields ? "ok" : "partial";
   }
 
   if (/\b(log in|login|sign in|sign up|create new account|forgot account)\b/i.test(rawText)) {
