@@ -7,6 +7,12 @@
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   }
 
+  function positiveIntegerAtLeast(value, fallback, min) {
+    const parsed = Math.floor(Number(value));
+    const threshold = Number.isFinite(min) ? min : 1;
+    return Number.isFinite(parsed) && parsed >= threshold ? parsed : fallback;
+  }
+
   function buildFacebookSearchUrl(filters) {
     const params = new URLSearchParams();
     params.set("query", String(filters.query || ""));
@@ -15,7 +21,7 @@
     params.set("minYear", String(positiveNumber(filters.minYear, 2013)));
     params.set("category_id", FACEBOOK_VEHICLE_CATEGORY_ID);
     params.set("radius", String(positiveNumber(filters.radius, 100)));
-    params.set("daysSinceListed", String(positiveNumber(filters.daysListed, 7)));
+    params.set("daysSinceListed", String(positiveIntegerAtLeast(filters.daysListed, 7, 1)));
     params.set("sortBy", "creation_time_descend");
     params.set("exact", filters.exact === false ? "false" : "true");
 

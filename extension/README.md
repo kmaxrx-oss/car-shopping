@@ -81,6 +81,14 @@ One-click active-tab save uses the `tabs` permission to request current-tab titl
 
 For Facebook Marketplace item URLs, active-tab save and URL-only listing capture attempt the optional local reader at `http://localhost:3137/read-listing`. Reader details fill blank saved-car fields only; explicit pasted fields stay authoritative. If the local reader is unavailable or cannot identify listing details, the extension still saves the URL-only card with a clear status message.
 
+## URL identity contract (shared)
+
+All Facebook Marketplace item URL handling for capture, reader eligibility, duplicate detection, manual entry, active-tab save, and stored normalization now routes through one shared contract in `extension/shared/url-utils.js` (registered as `globalThis.CarSearchHarnessUrlUtils`).
+
+Canonical form for item identity: `https://www.facebook.com/marketplace/item/{id}/`
+
+See required functions in the tranche notes for `normalizeMarketplaceItemUrl`, `extractBestListingUrl`, `normalizeSavedCarIdentityUrl`, etc. Non-item URLs (including FB search URLs) are not promoted to item identity.
+
 ## Deferred work
 
 - Full Cars.com, eBay, Craigslist, and Autotrader URL builders.

@@ -40,6 +40,15 @@
   }
 
   function normalizeSavedCarUrl(value) {
+    const urlUtils = globalThis.CarSearchHarnessUrlUtils;
+    if (urlUtils && typeof urlUtils.normalizeSavedCarIdentityUrl === "function") {
+      const canon = urlUtils.normalizeSavedCarIdentityUrl(value);
+      if (canon) {
+        return canon;
+      }
+    }
+
+    // Fallback when url-utils not present (tests/script order) or non-canonical result: previous basic + marketplace logic
     try {
       const url = new URL(String(value || "").trim());
       if (url.protocol !== "http:" && url.protocol !== "https:") {

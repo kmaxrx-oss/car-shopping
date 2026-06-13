@@ -3,6 +3,12 @@
   const listingReaderTimeoutMs = 10000;
 
   function isFacebookMarketplaceListingUrl(value) {
+    const urlUtils = globalThis.CarSearchHarnessUrlUtils;
+    if (urlUtils && typeof urlUtils.isMarketplaceItemUrl === "function") {
+      return urlUtils.isMarketplaceItemUrl(value);
+    }
+
+    // Fallback when url-utils not present
     try {
       const url = new URL(String(value || "").trim());
       return (
@@ -70,6 +76,15 @@
       return { readStatus: "reader_unavailable", error: "Local reader requires fetch support." };
     }
 
+    const urlUtils = globalThis.CarSearchHarnessUrlUtils;
+    let effectiveUrl = String(url || "").trim();
+    if (urlUtils && typeof urlUtils.normalizeMarketplaceItemUrl === "function") {
+      const canon = urlUtils.normalizeMarketplaceItemUrl(effectiveUrl);
+      if (canon) {
+        effectiveUrl = canon;
+      }
+    }
+
     const controller = typeof global.AbortController === "function" ? new global.AbortController() : null;
     const timeoutId = controller
       ? global.setTimeout(() => controller.abort(), listingReaderTimeoutMs)
@@ -79,7 +94,7 @@
       const response = await global.fetch(listingReaderEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: effectiveUrl }),
         signal: controller ? controller.signal : undefined,
       });
 

@@ -5,8 +5,14 @@
       return { error: "Paste or drop a listing URL or text block to use Smart Capture." };
     }
 
-    const urlMatch = sourceText.match(/https?:\/\/\S+/i);
-    const url = urlMatch ? urlMatch[0].replace(/[)\].,!?]+$/, "") : "";
+    const urlUtils = globalThis.CarSearchHarnessUrlUtils;
+    let url = "";
+    if (urlUtils && typeof urlUtils.extractBestListingUrl === "function") {
+      url = urlUtils.extractBestListingUrl(sourceText);
+    } else {
+      const urlMatch = sourceText.match(/https?:\/\/\S+/i);
+      url = urlMatch ? urlMatch[0].replace(/[)\].,!?]+$/, "") : "";
+    }
 
     const rawLines = sourceText
       .split(/\r?\n/)
@@ -70,7 +76,20 @@
     }
 
     const filteredLines = uniqueLines.filter((line) => {
+      const urlUtils = globalThis.CarSearchHarnessUrlUtils;
+      let ignoreUrlHit = false;
       if (url && line.includes(url)) {
+        ignoreUrlHit = true;
+      } else if (urlUtils && typeof urlUtils.extractUrlsFromText === "function") {
+        const rawUrls = urlUtils.extractUrlsFromText(sourceText);
+        for (const ru of rawUrls) {
+          if (ru && line.includes(ru)) {
+            ignoreUrlHit = true;
+            break;
+          }
+        }
+      }
+      if (ignoreUrlHit) {
         return false;
       }
       if (price && line === price) {
@@ -146,12 +165,18 @@
       return false;
     }
 
-    const textWithoutUrl = String(rawText || "")
-      .replace(capture.url, "")
-      .replace(/^\s*\[InternetShortcut\]\s*$/gim, "")
-      .replace(/^\s*URL=\s*$/gim, "")
-      .replace(/^\s*URL=/gim, "")
-      .trim();
+    const urlUtils = globalThis.CarSearchHarnessUrlUtils;
+    let textWithoutUrl;
+    if (urlUtils && typeof urlUtils.stripCapturedUrlNoise === "function") {
+      textWithoutUrl = urlUtils.stripCapturedUrlNoise(rawText, capture.url);
+    } else {
+      textWithoutUrl = String(rawText || "")
+        .replace(capture.url, "")
+        .replace(/^\s*\[InternetShortcut\]\s*$/gim, "")
+        .replace(/^\s*URL=\s*$/gim, "")
+        .replace(/^\s*URL=/gim, "")
+        .trim();
+    }
 
     return !capture.title && !capture.price && !capture.location && !capture.sellerName && !textWithoutUrl;
   }
