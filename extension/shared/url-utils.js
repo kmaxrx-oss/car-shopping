@@ -1,4 +1,13 @@
 (function registerUrlUtils(global) {
+  const trailingUrlPunctuationRe = /[)\].,!?;:'"`>]+$/g;
+  const marketplaceItemPathRe = /^\/marketplace\/item\/[^/]+\/?$/i;
+  const schemeLessMarketplaceItemRe =
+    /\b((?:facebook\.com|www\.facebook\.com|m\.facebook\.com)\/marketplace\/item\/[^\s<>"')\]]+)/gi;
+
+  function trimUrlToken(value) {
+    return String(value || "").trim().replace(trailingUrlPunctuationRe, "");
+  }
+
   function isHttpUrl(value) {
     try {
       const url = new URL(String(value || "").trim());
@@ -8,15 +17,52 @@
     }
   }
 
+  function toUrlParseCandidate(value) {
+    const candidate = trimUrlToken(value);
+    if (/^https?:\/\//i.test(candidate)) {
+      return candidate;
+    }
+
+    if (
+      /^(?:facebook\.com|www\.facebook\.com|m\.facebook\.com)\/marketplace\/item\/[^/\s?#]+\/?(?:[?#]\S*)?$/i.test(candidate)
+    ) {
+      return `https://${candidate}`;
+    }
+
+    return candidate;
+  }
+
+  function extractSchemeLessMarketplaceItemMatches(rawText) {
+    const text = String(rawText || "");
+    const results = [];
+    let match;
+    while ((match = schemeLessMarketplaceItemRe.exec(text)) !== null) {
+      const raw = trimUrlToken(match[1]);
+      const normalized = normalizeMarketplaceItemUrl(raw);
+      if (normalized) {
+        results.push({ raw, normalized });
+      }
+    }
+    return results;
+  }
+
   function extractUrlsFromText(rawText) {
     const text = String(rawText || "");
     const re = /https?:\/\/\S+/gi;
     const results = [];
     let match;
     while ((match = re.exec(text)) !== null) {
-      let candidate = match[0].replace(/[)\].,!?;:'"`>]+$/g, "");
+      const candidate = trimUrlToken(match[0]);
       if (isHttpUrl(candidate)) {
         results.push(candidate);
+      }
+    }
+    for (const schemeLessMatch of extractSchemeLessMarketplaceItemMatches(text)) {
+      if (!results.includes(schemeLessMatch.raw)) {
+        results.push(schemeLessMatch.raw);
+      }
+      if (!results.includes(schemeLessMatch.normalized)) {
+        results.push(schemeLessMatch.normalized);
       }
     }
     return results;
@@ -29,14 +75,14 @@
     if (!match || !match[1]) return "";
     try {
       let decoded = decodeURIComponent(match[1]);
-      decoded = decoded.replace(/[)\].,!?;:'"`>]+$/g, "");
+      decoded = trimUrlToken(decoded);
       if (isHttpUrl(decoded)) return decoded;
     } catch (error) {}
     return "";
   }
 
   function normalizeMarketplaceItemUrl(value) {
-    let candidate = String(value || "").trim();
+    let candidate = toUrlParseCandidate(value);
     if (!candidate) return "";
 
     // Unwrap l.facebook.com/l.php?u=...
@@ -44,7 +90,7 @@
       const uMatch = candidate.match(/[?&]u=([^&"'\s>)]+)/i);
       if (uMatch && uMatch[1]) {
         try {
-          candidate = decodeURIComponent(uMatch[1]);
+          candidate = trimUrlToken(decodeURIComponent(uMatch[1]));
         } catch (error) {}
       }
     }
@@ -73,7 +119,7 @@
         host === "l.facebook.com";
       if (!isFbHost) return "";
 
-      if (/^\/marketplace\/item\/[^/]+\/?$/i.test(url.pathname)) {
+      if (marketplaceItemPathRe.test(url.pathname)) {
         url.hostname = "www.facebook.com";
         url.search = "";
         url.hash = "";
@@ -148,6 +194,11 @@
     for (const ru of rawUrls) {
       if (ru) {
         text = text.split(ru).join("");
+      }
+    }
+    for (const schemeLessMatch of extractSchemeLessMarketplaceItemMatches(rawText)) {
+      if (schemeLessMatch.raw) {
+        text = text.split(schemeLessMatch.raw).join("");
       }
     }
     // Then strip the (possibly canonical) form if still present as substring
