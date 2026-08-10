@@ -3,6 +3,7 @@
     savedCars: "carShopping.savedCars.v1",
     activeSearch: "carShopping.extension.activeSearch.v1",
     recentZips: "carShopping.extension.recentZips.v1",
+    savedCarListPrefs: "carShopping.extension.savedCarListPrefs.v1",
   };
 
   const storagePlan = {
@@ -51,10 +52,55 @@
     await setValue(storageKeys.savedCars, savedCars);
   }
 
+  async function getActiveSearch() {
+    const value = await getValue(storageKeys.activeSearch, null);
+    return value && typeof value === "object" ? value : null;
+  }
+
+  async function setActiveSearch(activeSearch) {
+    if (!activeSearch || typeof activeSearch !== "object") {
+      throw new Error("Active search must be stored as an object.");
+    }
+
+    await setValue(storageKeys.activeSearch, activeSearch);
+  }
+
+  async function getRecentZips() {
+    const value = await getValue(storageKeys.recentZips, []);
+    return Array.isArray(value) ? value : [];
+  }
+
+  async function setRecentZips(recentZips) {
+    if (!Array.isArray(recentZips)) {
+      throw new Error("Recent ZIPs must be stored as an array.");
+    }
+
+    await setValue(storageKeys.recentZips, recentZips);
+  }
+
+  async function getSavedCarListPrefs() {
+    const value = await getValue(storageKeys.savedCarListPrefs, null);
+    return value && typeof value === "object" ? value : null;
+  }
+
+  async function setSavedCarListPrefs(savedCarListPrefs) {
+    if (!savedCarListPrefs || typeof savedCarListPrefs !== "object") {
+      throw new Error("Saved car list prefs must be stored as an object.");
+    }
+
+    await setValue(storageKeys.savedCarListPrefs, savedCarListPrefs);
+  }
+
   global.CarSearchHarnessStorage = {
     storageKeys,
     storagePlan,
     getSavedCars,
     setSavedCars,
+    getActiveSearch,
+    setActiveSearch,
+    getRecentZips,
+    setRecentZips,
+    getSavedCarListPrefs,
+    setSavedCarListPrefs,
   };
 })(globalThis);

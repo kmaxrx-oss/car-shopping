@@ -123,16 +123,45 @@ textarea {
 
 .chip-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 8px;
 }
 
 .chip {
+  border: 1px solid transparent;
   border-radius: 999px;
   background: rgba(33, 28, 22, 0.08);
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
   padding: 6px 9px;
+}
+
+.chip-button {
+  cursor: pointer;
+}
+
+.chip-button:hover {
+  border-color: var(--line);
+  background: #fff;
+}
+
+.chip-button.is-active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.chip.is-muted {
+  font-weight: 600;
+}
+
+.zip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .controls-grid {
@@ -218,10 +247,69 @@ textarea {
   gap: 8px;
 }
 
+.saved-cars-list-controls {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.saved-cars-list-controls__field {
+  margin: 0;
+}
+
+.saved-cars-list-controls__toggle {
+  margin: 0;
+}
+
 .saved-cars-list {
   display: grid;
   gap: 8px;
   margin-top: 10px;
+}
+
+.saved-cars-state-group {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-cars-state-group__header {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 4px 0 0;
+  padding: 0 2px;
+}
+
+.saved-car-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.saved-car-card__favorite {
+  border: 0;
+  background: transparent;
+  color: #c4a000;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.saved-car-card__favorite:hover,
+.saved-car-card__favorite.is-active {
+  color: #9a7b00;
+}
+
+.saved-car-card__favorite.is-active {
+  text-shadow: 0 0 0.5px currentColor;
 }
 
 .saved-cars-empty,
@@ -245,8 +333,10 @@ textarea {
 
 .saved-car-card__title {
   color: var(--ink);
+  flex: 1;
   font-size: 0.94rem;
   font-weight: 800;
+  min-width: 0;
 }
 
 .saved-car-card__detail,
@@ -339,6 +429,24 @@ textarea {
 .capture-actions {
   display: flex;
   gap: 8px;
+}
+
+.backup-controls {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.repo-controls {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 8px;
+  flex-wrap: wrap;
+}
+
+.repo-controls #repo-status {
+  width: 100%;
+  margin-bottom: 2px;
 }
 
 .tier-picker {

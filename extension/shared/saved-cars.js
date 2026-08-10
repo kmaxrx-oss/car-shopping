@@ -9,6 +9,7 @@
     "location",
     "sellerName",
     "mileage",
+    "year",
     "transmission",
     "fuelType",
     "description",
@@ -17,10 +18,21 @@
     "statusHint",
     "status",
     "notes",
+    "favorite",
     "sourceText",
     "createdAt",
     "updatedAt",
   ];
+
+  function inferYearFromTitle(title) {
+    const utils = globalThis.CarSearchHarnessSavedCarUtils;
+    if (utils && typeof utils.inferYearFromTitle === "function") {
+      return utils.inferYearFromTitle(title);
+    }
+
+    const match = String(title || "").match(/\b(19[89]\d|20[0-3]\d)\b/);
+    return match ? match[1] : "";
+  }
 
   function generateSavedCarId() {
     if (global.crypto && typeof global.crypto.randomUUID === "function") {
@@ -84,6 +96,7 @@
       location: typeof source.location === "string" ? source.location : "",
       sellerName: typeof source.sellerName === "string" ? source.sellerName : "",
       mileage: typeof source.mileage === "string" ? source.mileage : "",
+      year: typeof source.year === "string" ? source.year : "",
       transmission: typeof source.transmission === "string" ? source.transmission : "",
       fuelType: typeof source.fuelType === "string" ? source.fuelType : "",
       description: typeof source.description === "string" ? source.description : "",
@@ -92,6 +105,7 @@
       statusHint: typeof source.statusHint === "string" ? source.statusHint : "",
       status: savedCarStatuses.includes(source.status) ? source.status : "Interested",
       notes: typeof source.notes === "string" ? source.notes : "",
+      favorite: Boolean(source.favorite),
       sourceText: typeof source.sourceText === "string" ? source.sourceText : "",
       createdAt: typeof source.createdAt === "string" ? source.createdAt : "",
       updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : "",
@@ -115,6 +129,7 @@
       location: draft.location.trim(),
       sellerName: draft.sellerName.trim(),
       mileage: draft.mileage.trim(),
+      year: draft.year.trim() || inferYearFromTitle(draft.title.trim()),
       transmission: draft.transmission.trim(),
       fuelType: draft.fuelType.trim(),
       description: draft.description.trim(),
@@ -122,6 +137,7 @@
       readStatus: draft.readStatus.trim(),
       statusHint: draft.statusHint.trim(),
       notes: draft.notes.trim(),
+      favorite: Boolean(draft.favorite),
       sourceText: draft.sourceText,
       createdAt: draft.createdAt || now,
       updatedAt: draft.updatedAt || now,

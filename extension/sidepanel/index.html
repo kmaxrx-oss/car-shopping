@@ -29,19 +29,26 @@
         <h2 id="zip-title">ZIP</h2>
         <label class="field">
           <span>Active ZIP</span>
-          <input id="active-zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="Add ZIP later" />
+          <input id="active-zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="e.g. 56031" />
         </label>
-        <div class="chip-row" aria-label="Recent ZIPs">
-          <span class="chip is-muted">Recent ZIP placeholder</span>
+        <p id="active-location-label" class="status-line">Marketplace location not set yet.</p>
+        <div class="zip-actions">
+          <button id="use-marketplace-location-button" class="secondary-button" type="button">Use Marketplace location</button>
         </div>
+        <div id="recent-zips" class="chip-row" aria-label="Recent ZIPs"></div>
+        <p id="zip-status-line" class="status-line" role="status"></p>
       </section>
 
       <section class="panel-section" aria-labelledby="controls-title">
         <h2 id="controls-title">Search Controls</h2>
         <div class="controls-grid">
           <label class="field">
-            <span>Query / model</span>
-            <input id="search-query" type="text" autocomplete="off" value="hybrid" />
+            <span id="search-query-label">Query / model</span>
+            <input id="search-query" type="text" autocomplete="off" value="hybrid" placeholder="e.g. hybrid" />
+          </label>
+          <label class="field platform-field platform-field--craigslist" data-platform-field="craigslist" hidden>
+            <span>Craigslist site</span>
+            <input id="craigslist-base-url" type="text" autocomplete="off" value="https://wausau.craigslist.org" placeholder="wausau.craigslist.org" />
           </label>
           <label class="field">
             <span>Min price</span>
@@ -56,18 +63,21 @@
             <input id="min-year" type="number" min="1900" step="1" value="2013" />
           </label>
           <label class="field">
-            <span>Radius</span>
+            <span>Radius (miles)</span>
             <input id="radius" type="number" min="1" step="1" value="100" />
           </label>
-          <label class="field">
+          <label class="field platform-field platform-field--facebook" data-platform-field="facebook">
             <span>Days listed</span>
             <input id="days-listed" type="number" min="1" step="1" value="7" />
           </label>
-          <label class="toggle-field">
+          <label class="toggle-field platform-field platform-field--facebook" data-platform-field="facebook">
             <input id="exact-match" type="checkbox" checked />
             <span>Exact match</span>
           </label>
         </div>
+        <p id="craigslist-search-note" class="status-line platform-field platform-field--craigslist" data-platform-field="craigslist" hidden>
+          Craigslist URL uses site, ZIP, radius, price, year, and negative keywords. Optional keyword is only added when you type one.
+        </p>
         <button id="search-button" class="search-button" type="button">Search Facebook</button>
         <p id="search-status" class="status-line" role="status"></p>
       </section>
@@ -78,7 +88,7 @@
         <div id="listing-capture-box" class="listing-capture-box">
           <label class="field">
             <span>Drop or paste listing text/URL</span>
-            <textarea id="listing-capture" class="listing-capture-textarea" rows="4" placeholder="Paste a Facebook Marketplace listing text block or URL here..."></textarea>
+            <textarea id="listing-capture" class="listing-capture-textarea" rows="4" placeholder="Paste a Marketplace or Craigslist listing text block or URL here..."></textarea>
           </label>
           <div class="capture-actions">
             <button id="use-capture-button" class="secondary-button" type="button">Use Capture</button>
@@ -132,6 +142,45 @@
           </div>
           <p id="saved-car-status-line" class="status-line" role="status"></p>
         </form>
+
+        <div class="backup-controls">
+          <button id="export-backup-button" class="secondary-button" type="button">Export Backup</button>
+          <button id="import-backup-button" class="secondary-button" type="button">Import Backup</button>
+          <input id="import-file-input" type="file" accept="application/json,.json" hidden />
+        </div>
+
+        <div class="repo-controls">
+          <div id="repo-status" class="status-line"></div>
+          <button id="choose-repo-button" class="secondary-button" type="button">Link Repository Folder</button>
+          <button id="save-to-repo-button" class="secondary-button" type="button">Save to Repo</button>
+          <button id="load-from-repo-button" class="secondary-button" type="button">Load from Repo</button>
+          <input id="repo-folder-input" type="file" webkitdirectory hidden />
+          <input id="repo-file-input" type="file" accept="application/json,.json" hidden />
+        </div>
+
+        <div class="saved-cars-list-controls" aria-label="Saved cars list options">
+          <label class="field saved-cars-list-controls__field">
+            <span>Sort by</span>
+            <select id="saved-cars-sort">
+              <option value="updated-desc">Recently updated</option>
+              <option value="price-asc">Price (low → high)</option>
+              <option value="price-desc">Price (high → low)</option>
+              <option value="mileage-asc">Mileage (low → high)</option>
+              <option value="mileage-desc">Mileage (high → low)</option>
+              <option value="year-asc">Year (old → new)</option>
+              <option value="year-desc">Year (new → old)</option>
+            </select>
+          </label>
+          <label class="toggle-field saved-cars-list-controls__toggle">
+            <input id="saved-cars-group-by-state" type="checkbox" checked />
+            <span>Group by state</span>
+          </label>
+          <label class="toggle-field saved-cars-list-controls__toggle">
+            <input id="saved-cars-favorites-only" type="checkbox" />
+            <span>Favorites only</span>
+          </label>
+        </div>
+
         <div id="saved-cars-list" class="saved-cars-list" aria-live="polite"></div>
       </section>
 
@@ -143,10 +192,16 @@
 
     <script src="../shared/url-utils.js"></script>
     <script src="../shared/vehicles.js"></script>
+    <script src="../shared/marketplace-location.js"></script>
+    <script src="../shared/zip-geocode.js"></script>
+    <script src="../shared/craigslist-exclusions.js"></script>
+    <script src="../shared/craigslist.js"></script>
     <script src="../shared/platforms.js"></script>
     <script src="../shared/storage.js"></script>
+    <script src="../shared/saved-car-utils.js"></script>
     <script src="../shared/saved-cars.js"></script>
     <script src="../shared/capture-parser.js"></script>
+    <script src="../shared/listing-extractor.js"></script>
     <script src="../shared/listing-reader-client.js"></script>
     <script src="sidepanel.js"></script>
   </body>

@@ -61,6 +61,19 @@ The active ZIP field is present for the extension path, but Facebook still uses 
 
 Tab reuse is best-effort in this tranche. The service worker keeps the Facebook tab id it created and updates that tab on the next search while the id is available. If the tab is closed or the worker has lost that in-memory id, it opens a new tab. Durable tab tracking is intentionally deferred.
 
+## Data durability & backups (repository)
+
+Saved cars live in `chrome.storage.local`. This storage is **deleted when the extension is uninstalled** (even for the same version/ID on reinstall). To ensure cars are *only* removed when you explicitly delete them:
+
+- Use the **Export Backup** / **Import Backup** buttons in the Saved Cars section.
+- Export produces a dated `.json` file containing the full list (plus metadata). Store it in OneDrive, a Git repo, external drive, etc.
+- Import **merges** (adds only new cars by normalized URL; existing ones are never overwritten or deleted).
+- After any uninstall + reinstall (or on a new machine), simply re-import your latest backup file once.
+
+This JSON file is your durable "repository." The extension never auto-deletes cars on its own.
+
+The same JSON format can also be used as interchange with the static app if you ever export its `localStorage` data.
+
 ## Saved cars preservation
 
 The current saved-car data shape remains the compatibility target:

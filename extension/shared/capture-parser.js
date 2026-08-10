@@ -53,7 +53,7 @@
     }
 
     if (!sellerName) {
-      const sellerInfoIdx = uniqueLines.findIndex((line) => /^seller information$/i.test(line));
+      const sellerInfoIdx = uniqueLines.findIndex((line) => /seller information/i.test(line));
       if (sellerInfoIdx !== -1) {
         for (let i = sellerInfoIdx + 1; i < uniqueLines.length; i++) {
           const candidate = uniqueLines[i];
@@ -64,8 +64,10 @@
             candidate !== location &&
             candidate !== mileageLine &&
             !/^[\d⭐*]/.test(candidate) &&
-            !/^member since/i.test(candidate) &&
-            !/^(facebook|marketplace)$/i.test(candidate)
+            !/^member since|^joined /i.test(candidate) &&
+            !/^(facebook|marketplace)$/i.test(candidate) &&
+            !/^seller (information|details)$/i.test(candidate) &&
+            !/send.*seller|message.*seller|seller.*(message|details)/i.test(candidate)
           ) {
             sellerName = candidate;
             sellerSectionNameLine = candidate;

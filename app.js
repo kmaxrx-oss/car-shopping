@@ -1,7 +1,10 @@
 (function () {
   const vehicles = window.CAR_SEARCH_HOMEBASE_VEHICLES || [];
   const tierById = new Map(vehicles.map((tier) => [tier.id, tier]));
+  const marketplaceLocation = window.CarSearchHarnessMarketplaceLocation;
   const savedCarsStorageKey = "carShopping.savedCars.v1";
+  const activeSearchStorageKey = "carShopping.extension.activeSearch.v1";
+  const recentZipsStorageKey = "carShopping.extension.recentZips.v1";
   const savedCarStatuses = ["Interested", "Messaged", "Maybe", "Rejected", "Gone / Removed", "Bought / Dead end"];
   const listingReaderEndpoint = "http://localhost:3137/read-listing";
   const listingReaderTimeoutMs = 10000;
@@ -15,13 +18,17 @@
     exact: true,
     manualQuery: "",
     savedCars: [],
+    zip: marketplaceLocation ? marketplaceLocation.DEFAULT_ZIP : "",
+    locationId: marketplaceLocation ? marketplaceLocation.DEFAULT_LOCATION_ID : "103108469729444",
+    locationLabel: marketplaceLocation ? marketplaceLocation.DEFAULT_LOCATION_LABEL : "Fairmont, MN",
   };
 
-  const baseUrl = "https://www.facebook.com/marketplace/103108469729444/search/";
+  let recentZipRecords = [];
 
   const els = {
     tierSections: document.getElementById("tier-sections"),
     activeTierLabel: document.getElementById("active-tier-label"),
+    marketplaceZip: document.getElementById("marketplace-zip"),
     minPrice: document.getElementById("min-price"),
     maxPrice: document.getElementById("max-price"),
     radius: document.getElementById("radius"),
@@ -213,6 +220,89 @@
     }
   }
 
+  function getMarketplaceSearchBaseUrl() {
+    if (marketplaceLocation) {
+      return marketplaceLocation.buildMarketplaceSearchBase(state.locationId);
+    }
+
+    return `https://www.facebook.com/marketplace/${state.locationId || "103108469729444"}/search/`;
+  }
+
+  function loadZipState() {
+    if (!marketplaceLocation) {
+      return;
+    }
+
+    try {
+      const activeRaw = window.localStorage.getItem(activeSearchStorageKey);
+      const recentRaw = window.localStorage.getItem(recentZipsStorageKey);
+      const activeSearch = marketplaceLocation.normalizeActiveSearch(activeRaw ? JSON.parse(activeRaw) : null);
+      state.zip = activeSearch.zip;
+      state.locationId = activeSearch.locationId;
+      state.locationLabel = activeSearch.locationLabel;
+      if (els.marketplaceZip) {
+        els.marketplaceZip.value = activeSearch.zip;
+      }
+
+      const parsedRecent = recentRaw ? JSON.parse(recentRaw) : [];
+      recentZipRecords = Array.isArray(parsedRecent)
+        ? parsedRecent.map((entry) => marketplaceLocation.normalizeRecentZipEntry(entry)).filter(Boolean)
+        : [];
+
+      if (!recentZipRecords.length) {
+        recentZipRecords = marketplaceLocation.upsertRecentZip([], {
+          zip: activeSearch.zip,
+          locationId: activeSearch.locationId,
+          locationLabel: activeSearch.locationLabel,
+        });
+        window.localStorage.setItem(recentZipsStorageKey, JSON.stringify(recentZipRecords));
+      }
+    } catch (error) {
+      // keep defaults
+    }
+  }
+
+  function saveZipState() {
+    if (!marketplaceLocation) {
+      return;
+    }
+
+    const activeSearch = marketplaceLocation.normalizeActiveSearch({
+      zip: state.zip,
+      locationId: state.locationId,
+      locationLabel: state.locationLabel,
+    });
+    state.zip = activeSearch.zip;
+    state.locationId = activeSearch.locationId;
+    state.locationLabel = activeSearch.locationLabel;
+
+    try {
+      window.localStorage.setItem(activeSearchStorageKey, JSON.stringify(activeSearch));
+      window.localStorage.setItem(recentZipsStorageKey, JSON.stringify(recentZipRecords));
+    } catch (error) {
+      // ignore write failures
+    }
+  }
+
+  function applyZipFromControls() {
+    if (!marketplaceLocation || !els.marketplaceZip) {
+      return;
+    }
+
+    const zip = marketplaceLocation.normalizeZip(els.marketplaceZip.value);
+    if (!zip) {
+      return;
+    }
+
+    state.zip = zip;
+    const cached = marketplaceLocation.findRecentZip(recentZipRecords, zip);
+    if (cached) {
+      state.locationId = cached.locationId;
+      state.locationLabel = cached.locationLabel || cached.zip;
+      saveZipState();
+    }
+  }
+
   function buildMarketplaceUrl({ query, minYear, minPrice, maxPrice, radius, daysListed, exact }) {
     const params = new URLSearchParams();
     params.set("query", query);
@@ -220,11 +310,14 @@
     params.set("maxPrice", String(maxPrice));
     params.set("minYear", String(minYear));
     params.set("category_id", "546583916084032");
-    params.set("radius", String(radius));
+    const radiusParam = marketplaceLocation
+      ? marketplaceLocation.milesToFacebookRadiusParam(radius)
+      : radius;
+    params.set("radius", String(radiusParam));
     params.set("daysSinceListed", String(daysListed));
     params.set("sortBy", "creation_time_descend");
     params.set("exact", exact ? "true" : "false");
-    return `${baseUrl}?${params.toString()}`;
+    return `${getMarketplaceSearchBaseUrl()}?${params.toString()}`;
   }
 
   function parseSavedCarCapture(rawText) {
@@ -435,12 +528,19 @@
   }
 
   function syncStateFromControls() {
+    if (marketplaceLocation && els.marketplaceZip) {
+      const zip = marketplaceLocation.normalizeZip(els.marketplaceZip.value);
+      if (zip) {
+        state.zip = zip;
+      }
+    }
     state.minPrice = toPositiveNumber(els.minPrice.value, 1500);
     state.maxPrice = toPositiveNumber(els.maxPrice.value, 4000);
     state.radius = toPositiveNumber(els.radius.value, 100);
     state.daysListed = toPositiveNumber(els.daysListed.value, 7);
     state.exact = els.exact.checked;
     state.manualQuery = els.manualQuery.value.trim();
+    applyZipFromControls();
   }
 
   function getCardUrl(modelName, tierMinYear, extraTerm) {
@@ -1078,7 +1178,12 @@
   }
 
   function attachEvents() {
-    [els.minPrice, els.maxPrice, els.radius, els.daysListed, els.exact].forEach((input) => {
+    const controlInputs = [els.minPrice, els.maxPrice, els.radius, els.daysListed, els.exact];
+    if (els.marketplaceZip) {
+      controlInputs.push(els.marketplaceZip);
+    }
+
+    controlInputs.forEach((input) => {
       input.addEventListener("input", refreshGeneratedLinks);
       input.addEventListener("change", refreshGeneratedLinks);
     });
@@ -1139,6 +1244,7 @@
       return;
     }
 
+    loadZipState();
     renderTierSections();
     loadSavedCars();
     renderSavedCars();

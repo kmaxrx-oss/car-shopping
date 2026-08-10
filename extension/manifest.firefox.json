@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Car Search Harness",
+  "description": "Side-panel scaffold for a cross-platform car search controller.",
+  "version": "0.1.7",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "car-search-harness@local",
+      "strict_min_version": "109.0"
+    }
+  },
+  "action": {
+    "default_title": "Open Car Search Harness"
+  },
+  "background": {
+    "scripts": ["background/service-worker.js"]
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.craigslist.org/*",
+    "https://api.zippopotam.us/*"
+  ],
+  "sidebar_action": {
+    "default_title": "Open Car Search Harness",
+    "default_panel": "sidepanel/index.html"
+  }
+}
